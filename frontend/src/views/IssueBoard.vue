@@ -9,10 +9,10 @@
         </el-select>
         <el-select v-model="filterSev" clearable placeholder="严重程度" style="width:120px" @change="loadData">
           <el-option label="全部" value="" />
-          <el-option label="critical" value="critical" />
-          <el-option label="major" value="major" />
-          <el-option label="minor" value="minor" />
-          <el-option label="suggestion" value="suggestion" />
+          <el-option label="致命" value="critical" />
+          <el-option label="严重" value="major" />
+          <el-option label="警告" value="minor" />
+          <el-option label="建议" value="suggestion" />
         </el-select>
         <el-select v-model="filterStatus" clearable placeholder="状态" style="width:120px" @change="loadData">
           <el-option label="全部" value="" />
@@ -33,12 +33,12 @@
       </el-table-column>
       <el-table-column prop="issueType" label="类型" width="120">
         <template #default="{ row }">
-          <el-tag size="small" :type="typeTag(row.issueType)">{{ row.issueType }}</el-tag>
+          <el-tag size="small" :type="typeTag(row.issueType)">{{ typeName(row.issueType) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="severity" label="严重程度" width="100">
         <template #default="{ row }">
-          <el-tag size="small" :type="sevTag(row.severity)" effect="dark">{{ row.severity }}</el-tag>
+          <el-tag size="small" :type="sevTag(row.severity)" effect="dark">{{ sevName(row.severity) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="description" label="问题描述" min-width="200" show-overflow-tooltip />
@@ -111,7 +111,9 @@ const ignoreVisible = ref(false)
 const ignoreForm = ref({ id: 0, memo: '' })
 
 const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: 'info', suggestion: 'info' }[s] || 'info')
+const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '警告', suggestion: '建议' }[s] || s)
 const typeTag = (s: string) => ({ security: 'danger', correctness: 'warning', performance: 'info', maintainability: 'info', best_practice: 'info', code_style: 'info' }[s] || 'info')
+const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
 const statusTag = (s: number) => ['', 'warning', 'success', 'info'][s] || 'info'
 const statusName = (s: number) => ['待处理', '已认领', '已修复', '已忽略'][s] || '-'
 
