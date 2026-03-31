@@ -1,5 +1,6 @@
 import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@microsoft/signalr'
-import { ElMessage } from 'element-plus'
+import { ElNotification } from 'element-plus'
+import { refreshTasks } from './eventBus'
 
 let connection: HubConnection | null = null
 let starting = false
@@ -23,7 +24,6 @@ export function startSignalR() {
   const token = localStorage.getItem('cr_token')
   if (!token) return
 
-  // 防止重复建立
   if (connection?.state === HubConnectionState.Connected ||
       connection?.state === HubConnectionState.Connecting ||
       starting) return
@@ -45,9 +45,14 @@ export function startSignalR() {
   })
 
   connection.on('ReceiveNotification', (payload: Notification) => {
-    ElMessage({
-      message: `${payload.title} ${payload.message}`,
+    // 刷新任务列表
+    refreshTasks()
+
+    ElNotification({
+      title: payload.title,
+      message: payload.message,
       type: typeMap[payload.type] || 'info',
+      position: 'top-right',
       duration: 0,
       showClose: true,
     })

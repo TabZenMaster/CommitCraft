@@ -52,10 +52,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { reviewApi, repositoryApi } from '@/api'
+import { on } from '@/utils/eventBus'
 
 const router = useRouter()
 const tasks = ref<any[]>([])
@@ -66,12 +67,12 @@ const statusName = (s: number) => ['待审核', '审核中', '已完成', '失�
 const statusType = (s: number) => ['', 'warning', 'success', 'danger'][s] || 'info'
 
 onMounted(async () => {
-  const [t, r] = await Promise.all([
-    reviewApi.tasks(),
-    repositoryApi.list()
-  ])
-  if (t.success) tasks.value = t.data
-  if (r.success) repos.value = r.data
+  loadData()
+  on('review-updated', loadData)
+})
+
+onUnmounted(() => {
+  off('review-updated', loadData)
 })
 
 async function loadData() {
