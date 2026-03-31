@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Api/">
+    <Project Path="Api/CodeReview.Api.csproj" />
+  </Folder>
+  <Folder Name="/Application/">
+    <Project Path="Application/CodeReview.Application.csproj" />
+  </Folder>
+  <Folder Name="/Domain/">
+    <Project Path="Domain/CodeReview.Domain.csproj" />
+  </Folder>
+  <Folder Name="/Infrastructure/">
+    <Project Path="Infrastructure/CodeReview.Infrastructure.csproj" />
+  </Folder>
+</Solution>
