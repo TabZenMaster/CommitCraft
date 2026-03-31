@@ -1,8 +1,8 @@
 <template>
   <div>
     <div class="page-header">
-      <h3>🤖 模型配置</h3>
-      <el-button type="primary" @click="openDialog()">新增模型</el-button>
+      <div class="page-title">🤖 模型配置</div>
+      <el-button type="primary" @click="openDialog()">+ 新增模型</el-button>
     </div>
 
     <el-table :data="list" stripe>

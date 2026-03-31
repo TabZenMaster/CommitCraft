@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <h3>🔍 审核任务</h3>
+      <div class="page-title">🔍 审核任务</div>
       <div style="display:flex;gap:8px;align-items:center">
         <span style="font-size:13px;color:#999">仓库筛选：</span>
         <el-select v-model="filterRepo" clearable style="width:180px" @change="loadData">

@@ -1,18 +1,48 @@
 <template>
   <div class="login-page">
-    <el-card class="login-card">
-      <h2>CodeReview</h2>
-      <p class="sub">智能代码审核平台</p>
-      <el-form @submit.prevent="handleLogin">
-        <el-form-item>
-          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
-        </el-form-item>
-        <el-form-item>
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password @keyup.enter="handleLogin" />
-        </el-form-item>
-        <el-button type="primary" :loading="loading" style="width:100%" @click="handleLogin">登 录</el-button>
-      </el-form>
-    </el-card>
+    <div class="login-bg">
+      <div class="bg-orb orb1" />
+      <div class="bg-orb orb2" />
+      <div class="bg-orb orb3" />
+    </div>
+    <div class="login-wrap">
+      <div class="login-brand">
+        <div class="brand-icon">⚡</div>
+        <h1 class="brand-name">CodeReview</h1>
+        <p class="brand-sub">智能代码审核平台</p>
+      </div>
+      <el-card class="login-card" shadow="never">
+        <el-form @submit.prevent="handleLogin" size="large">
+          <el-form-item>
+            <el-input
+              v-model="form.username"
+              placeholder="用户名"
+              prefix-icon="User"
+              clearable
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-input
+              v-model="form.password"
+              type="password"
+              placeholder="密码"
+              prefix-icon="Lock"
+              show-password
+              @keyup.enter="handleLogin"
+            />
+          </el-form-item>
+          <el-button
+            type="primary"
+            :loading="loading"
+            class="login-btn"
+            @click="handleLogin"
+          >
+            登 入
+          </el-button>
+        </el-form>
+      </el-card>
+      <p class="login-tip">默认账号：admin / admin123</p>
+    </div>
   </div>
 </template>
 
@@ -55,11 +85,84 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0f1623;
+  position: relative;
+  overflow: hidden;
 }
-.login-card {
+
+/* 背景光球 */
+.login-bg { position: absolute; inset: 0; pointer-events: none; }
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  animation: orbFloat 8s ease-in-out infinite;
+}
+.orb1 { width: 500px; height: 500px; background: #409eff; top: -150px; left: -100px; animation-delay: 0s; }
+.orb2 { width: 400px; height: 400px; background: #53d1a6; bottom: -100px; right: -80px; animation-delay: -3s; }
+.orb3 { width: 300px; height: 300px; background: #764ba2; top: 50%; left: 60%; animation-delay: -5s; }
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+/* 内容 */
+.login-wrap {
+  position: relative;
+  z-index: 1;
   width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
-.login-card h2 { text-align: center; margin-bottom: 4px; }
-.login-card .sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 24px; }
+
+.login-brand { text-align: center; color: #fff; }
+.brand-icon { font-size: 40px; margin-bottom: 8px; }
+.brand-name { font-size: 28px; font-weight: 800; letter-spacing: 1px; margin: 0 0 4px; color: #fff; }
+.brand-sub { font-size: 14px; color: rgba(255,255,255,0.45); margin: 0; }
+
+.login-card {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(20px);
+  padding: 8px 0;
+}
+:deep(.el-card__body) { padding: 20px 24px; }
+:deep(.el-input__wrapper) {
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: none;
+  height: 44px;
+}
+:deep(.el-input__inner) { color: rgba(255,255,255,0.9); }
+:deep(.el-input__inner::placeholder) { color: rgba(255,255,255,0.3); }
+:deep(.el-input__prefix .el-icon) { color: rgba(255,255,255,0.35); }
+
+.login-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 4px;
+  background: #409eff;
+  border: none;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.login-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.login-btn:active { transform: translateY(0); }
+
+.login-tip {
+  font-size: 12px;
+  color: rgba(255,255,255,0.25);
+  text-align: center;
+  margin: 0;
+}
 </style>

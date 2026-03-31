@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <h3>🗂 问题处理台</h3>
+      <div class="page-title">🗂 问题处理台</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <el-select v-model="filterRepo" clearable placeholder="仓库" style="width:140px" @change="loadData">
           <el-option label="全部仓库" value="" />

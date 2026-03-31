@@ -1,7 +1,8 @@
 <template>
-  <div class="repository-page">
-    <div class="toolbar">
-      <el-button type="primary" @click="openDialog()">新增仓库</el-button>
+  <div class="page-container">
+    <div class="page-header">
+      <div class="page-title">📦 仓库管理</div>
+      <el-button type="primary" @click="openDialog()">+ 新增仓库</el-button>
     </div>
 
     <el-table :data="list" stripe>
@@ -228,8 +229,8 @@ async function doTrigger() {
 </script>
 
 <style scoped>
-.repository-page { padding: 20px; }
-.toolbar { margin-bottom: 16px; }
+.repository-page { }
+.page-header { margin-bottom: 16px; }
 .commit-row { padding: 12px 8px; border-bottom: 1px solid #f0f0f0; }
 .commit-row:hover { background: #f5f7fa; }
 .commit-sha { font-family: monospace; color: #409eff; font-size: 12px; }

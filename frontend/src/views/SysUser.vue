@@ -1,8 +1,8 @@
 <template>
   <div>
     <div class="page-header">
-      <h3>👥 用户管理</h3>
-      <el-button type="primary" @click="openDialog()">新增用户</el-button>
+      <div class="page-title">👥 用户管理</div>
+      <el-button type="primary" @click="openDialog()">+ 新增用户</el-button>
     </div>
 
     <el-table :data="list" stripe>
