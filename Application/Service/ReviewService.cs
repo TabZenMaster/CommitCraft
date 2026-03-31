@@ -14,10 +14,15 @@ public class ReviewService : IReviewService
     private readonly ISqlSugarClient _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ReviewQueueService _queue;
+    private readonly INotificationService? _notify;
 
-    public ReviewService(ISqlSugarClient db, IHttpClientFactory httpClientFactory, ReviewQueueService queue)
+    public ReviewService(ISqlSugarClient db, IHttpClientFactory httpClientFactory, ReviewQueueService queue,
+        INotificationService? notify = null)
     {
         _db = db;
+        _httpClientFactory = httpClientFactory;
+        _queue = queue;
+        _notify = notify;
         _httpClientFactory = httpClientFactory;
         _queue = queue;
     }
@@ -166,21 +171,35 @@ public class ReviewService : IReviewService
 
     private async Task MarkFailed(int reviewCommitId, string msg)
     {
+        var commit = await _db.Queryable<ReviewCommit>()
+            .Where(x => x.Id == reviewCommitId).Select(x => new { x.RepositoryId, x.CommitSha }).FirstAsync();
+
         await _db.Updateable<ReviewCommit>()
             .SetColumns(x => x.Status == 3)
             .SetColumns(x => x.ErrorMsg == msg)
             .SetColumns(x => x.ReviewedAt == DateTime.Now)
             .Where(x => x.Id == reviewCommitId)
             .ExecuteCommandAsync();
+
+        // SignalR 通知
+        if (_notify != null && commit != null)
+            await _notify.NotifyReviewCompletedAsync(commit.RepositoryId, reviewCommitId, false, msg);
     }
 
     private async Task MarkSuccess(int reviewCommitId, string? msg = null)
     {
+        var commit = await _db.Queryable<ReviewCommit>()
+            .Where(x => x.Id == reviewCommitId).Select(x => new { x.RepositoryId, x.CommitSha }).FirstAsync();
+
         await _db.Updateable<ReviewCommit>()
             .SetColumns(x => x.Status == 2)
             .SetColumns(x => x.ReviewedAt == DateTime.Now)
             .Where(x => x.Id == reviewCommitId)
             .ExecuteCommandAsync();
+
+        // SignalR 通知
+        if (_notify != null && commit != null)
+            await _notify.NotifyReviewCompletedAsync(commit.RepositoryId, reviewCommitId, true);
     }
 
     // ========== Gitee API ==========

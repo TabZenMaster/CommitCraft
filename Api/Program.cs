@@ -1,5 +1,7 @@
 using CodeReview.Application.IService;
 using CodeReview.Application.Service;
+using CodeReview.Api.Hubs;
+using CodeReview.Api.Services;
 using CodeReview.Domain.Entities;
 using CodeReview.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -35,6 +37,7 @@ builder.Services.AddScoped<ISysUserService, SysUserService>();
 builder.Services.AddScoped<IModelConfigService, ModelConfigService>();
 builder.Services.AddScoped<IRepositoryService, RepositoryService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<INotificationService, SignalRNotificationService>();
 
 // ===== JWT =====
 var jwtKey = "CodeReview_Secret_Key_2026_Must_Be_32_Chars!";
@@ -52,6 +55,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
+
+// ===== SignalR =====
+builder.Services.AddSignalR();
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
@@ -77,6 +83,7 @@ app.UseCors("allow");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run("http://0.0.0.0:8080");
 
