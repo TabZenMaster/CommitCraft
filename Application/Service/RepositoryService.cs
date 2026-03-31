@@ -74,37 +74,33 @@ public class RepositoryService : IRepositoryService
 
     public async Task<bool> UpdateAsync(Repository model)
     {
-        var old = await GetByIdAsync(model.Id);
-        if (old == null) return false;
+        var oldEncrypted = await _db.Queryable<Repository>()
+            .Where(x => x.Id == model.Id && !x.IsDeleted)
+            .Select(x => new { x.GiteeToken, x.RepoUrl, x.RepoName, x.Owner, x.RepoPath })
+            .FirstAsync();
+        if (oldEncrypted == null) return false;
 
         // 如果仓库地址变了，重新解析并拉取显示名
-        if (model.RepoUrl != old.RepoUrl)
+        if (model.RepoUrl != oldEncrypted.RepoUrl)
         {
+            var oldDecrypted = CryptoHelper.Decrypt(oldEncrypted.GiteeToken);
             var parsed = ParseRepoUrl(model.RepoUrl);
             if (parsed != null)
             {
                 model.Owner = parsed.Value.owner;
                 model.RepoPath = parsed.Value.slug;
-                var giteeInfo = await FetchGiteeRepoInfoAsync(parsed.Value.platform, model.Owner, model.RepoPath, old.GiteeToken);
+                var giteeInfo = await FetchGiteeRepoInfoAsync(parsed.Value.platform, model.Owner, model.RepoPath, oldDecrypted);
                 if (giteeInfo != null)
                     model.RepoName = giteeInfo.Value.name;
             }
         }
 
-        // 脱敏值或空值不更新 Token，保持原密文
+        // 脱敏标记值不更新 Token，保持原密文
         if (model.GiteeToken == "******")
-        {
-            // GetByIdAsync 返回解密后的值，需直接从 DB 取原始密文
-            var raw = await _db.Queryable<Repository>()
-                .Where(x => x.Id == model.Id)
-                .Select(x => x.GiteeToken)
-                .FirstAsync();
-            model.GiteeToken = raw ?? model.GiteeToken;
-        }
+            model.GiteeToken = oldEncrypted.GiteeToken; // 直接用 DB 里的原始密文
         else
-        {
             model.GiteeToken = CryptoHelper.Encrypt(model.GiteeToken);
-        }
+
         return await _db.Updateable(model).ExecuteCommandAsync() > 0;
     }
 

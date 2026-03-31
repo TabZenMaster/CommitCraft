@@ -46,7 +46,7 @@ public class ModelConfigService : IModelConfigService
     {
         model.CreateTime = DateTime.Now;
         model.IsDeleted = false;
-        if (string.IsNullOrEmpty(model.ApiKey) || model.ApiKey.Contains("***"))
+        if (string.IsNullOrEmpty(model.ApiKey) || model.ApiKey == "******")
             return false;
         model.ApiKey = CryptoHelper.Encrypt(model.ApiKey); // 加密存储
         return await _db.Insertable(model).ExecuteCommandAsync() > 0;

@@ -45,6 +45,7 @@ public class ReviewService : IReviewService
             var repoIds = tasks.Select(t => t.RepositoryId).Distinct().ToList();
             var repoMap = (await _db.Queryable<Repository>()
                 .Where(x => !x.IsDeleted && repoIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.RepoName })
                 .ToListAsync())
                 .ToDictionary(x => x.Id, x => x.RepoName);
 
@@ -350,7 +351,6 @@ src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存
                 }
 
                 // 尝试提取 JSON 数组（处理可能的 markdown 包装）
-                var jsonStr = reply.Trim();
                 // 解析 pipe 分隔的文本格式：文件名|起始行|结束行|类型|严重|描述|建议 [|代码片段]
                 var issues = new List<ReviewIssue>();
                 var lines = reply.Split('\n', StringSplitOptions.RemoveEmptyEntries);
