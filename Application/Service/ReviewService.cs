@@ -77,20 +77,13 @@ public class ReviewService : IReviewService
         if (repo == null)
             return Result.Fail("仓库不存在或已停用");
 
-        // 检查是否已有相同 Commit 的审核记录（幂等）
-        // 暂时禁用 exists 检查，每次都创建新任务（方便调试）
-        // var exists = await _db.Queryable<ReviewCommit>()
-        //     .Where(x => !x.IsDeleted && x.RepositoryId == repositoryId && x.CommitSha == commitSha)
-        //     .FirstAsync();
-        // if (exists != null)
-        // {
-        //     exists.Status = 0;
-        //     exists.ErrorMsg = "";
-        //     exists.ReviewedAt = null;
-        //     await _db.Updateable(exists).ExecuteCommandAsync();
-        //     await ExecuteReviewAsync(exists.Id);
-        //     return Result.Ok("已重新触发审核");
-        // }
+        // 相同 Commit SHA 已审核完成，直接拦截不重复审核
+        var exists = await _db.Queryable<ReviewCommit>()
+            .Where(x => !x.IsDeleted && x.RepositoryId == repositoryId
+                && x.CommitSha == commitSha && x.Status == 2)
+            .FirstAsync();
+        if (exists != null)
+            return Result.Fail($"该 Commit 已审核完成（SHA: {commitSha[..8]}），请勿重复提交");
 
         // 新建审核任务
         var task = new ReviewCommit
