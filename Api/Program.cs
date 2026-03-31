@@ -54,6 +54,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = "CodeReview",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
+        // SignalR WebSocket 握手时 token 在 query string，从这里取
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var path = context.Request.Path;
+                if (!string.IsNullOrEmpty(context.Request.Query["access_token"])
+                    && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = context.Request.Query["access_token"];
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // ===== SignalR =====

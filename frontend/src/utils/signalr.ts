@@ -2,6 +2,7 @@ import { HubConnection, HubConnectionBuilder, HubConnectionState } from '@micros
 import { ElMessage } from 'element-plus'
 
 let connection: HubConnection | null = null
+let starting = false
 
 interface Notification {
   title: string
@@ -22,30 +23,40 @@ export function startSignalR() {
   const token = localStorage.getItem('cr_token')
   if (!token) return
 
-  // 如果已连接，不要重复建立
-  if (connection?.state === HubConnectionState.Connected) return
+  // 防止重复建立
+  if (connection?.state === HubConnectionState.Connected ||
+      connection?.state === HubConnectionState.Connecting ||
+      starting) return
 
+  starting = true
   connection = new HubConnectionBuilder()
     .withUrl('/hubs/notifications', { accessTokenFactory: () => token })
     .withAutomaticReconnect({ nextRetryDelayInSeconds: 10 })
     .build()
 
+  connection.onclose(() => { starting = false })
+  connection.onreconnected(() => { starting = false })
+  connection.start().then(() => {
+    console.log('SignalR 已连接，connectionId=', connection?.connectionId)
+    starting = false
+  }).catch(err => {
+    console.error('SignalR 连接失败:', err)
+    starting = false
+  })
+
   connection.on('ReceiveNotification', (payload: Notification) => {
     ElMessage({
       message: `${payload.title} ${payload.message}`,
       type: typeMap[payload.type] || 'info',
-      duration: 0, // 不自动关闭，用户手动关闭
+      duration: 0,
       showClose: true,
     })
-  })
-
-  connection.start().catch(err => {
-    console.warn('SignalR 连接失败:', err)
   })
 }
 
 export function stopSignalR() {
   if (connection?.state === HubConnectionState.Connected) {
     connection.stop().catch(() => {})
+    connection = null
   }
 }

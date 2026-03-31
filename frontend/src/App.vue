@@ -3,22 +3,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { startSignalR, stopSignalR } from '@/utils/signalr'
 
 const router = useRouter()
 
-// 登录页不连接
-const token = localStorage.getItem('cr_token')
-if (token) startSignalR()
-
-// 路由切换时：如果切到登录页则断开，否则保持连接
-router.afterEach(to => {
-  if (to.path === '/login') {
-    stopSignalR()
-  } else if (localStorage.getItem('cr_token')) {
-    startSignalR()
-  }
-})
+// 监听 token 变化：登录时连接，登出时断开
+watch(
+  () => localStorage.getItem('cr_token'),
+  (token) => {
+    if (token) startSignalR()
+    else stopSignalR()
+  },
+  { immediate: true }
+)
 </script>
