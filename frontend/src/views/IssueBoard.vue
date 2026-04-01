@@ -3,18 +3,18 @@
     <div class="page-header">
       <div class="page-title">🗂 问题处理台</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <el-select v-model="filterRepo" clearable placeholder="仓库" style="width:140px" @change="loadData">
+        <el-select v-model="filterRepo" clearable placeholder="仓库" style="width:140px" @change="onFilterChange">
           <el-option label="全部仓库" value="" />
           <el-option v-for="r in repos" :key="r.id" :label="r.repoName" :value="r.id" />
         </el-select>
-        <el-select v-model="filterSev" clearable placeholder="严重程度" style="width:120px" @change="loadData">
+        <el-select v-model="filterSev" clearable placeholder="严重程度" style="width:120px" @change="onFilterChange">
           <el-option label="全部" value="" />
           <el-option label="致命" value="critical" />
           <el-option label="严重" value="major" />
           <el-option label="警告" value="minor" />
           <el-option label="建议" value="suggestion" />
         </el-select>
-        <el-select v-model="filterStatus" clearable placeholder="状态" style="width:120px" @change="loadData">
+        <el-select v-model="filterStatus" clearable placeholder="状态" style="width:120px" @change="onFilterChange">
           <el-option label="全部" value="" />
           <el-option label="待处理" :value="0" />
           <el-option label="已认领" :value="1" />
@@ -66,6 +66,16 @@
       </el-table-column>
     </el-table>
 
+    <el-pagination
+      v-model:current-page="pageIndex"
+      v-model:page-size="pageSize"
+      :page-sizes="[20, 50, 100, 200]"
+      :total="total"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="loadData"
+      @current-change="loadData"
+      style="margin-top:16px;justify-content:center" />
+
     <!-- 修复弹窗 -->
     <el-dialog v-model="fixVisible" title="标记修复" width="420px">
       <el-form :model="fixForm" label-width="80px">
@@ -104,35 +114,45 @@ const repos = ref<any[]>([])
 const filterRepo = ref('')
 const filterSev = ref('')
 const filterStatus = ref('')
+const pageIndex = ref(1)
+const pageSize = ref(50)
+const total = ref(0)
 
 const fixVisible = ref(false)
 const fixForm = ref({ id: 0, memo: '' })
 const ignoreVisible = ref(false)
 const ignoreForm = ref({ id: 0, memo: '' })
 
-const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: 'info', suggestion: 'info' }[s] || 'info')
-const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '警告', suggestion: '建议' }[s] || s)
-const typeTag = (s: string) => ({ security: 'danger', correctness: 'warning', performance: 'info', maintainability: 'info', best_practice: 'info', code_style: 'info' }[s] || 'info')
+const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: '', suggestion: 'info' }[s] || '')
+const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
+const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
 const statusTag = (s: number) => ['', 'warning', 'success', 'info'][s] || 'info'
 const statusName = (s: number) => ['待处理', '已认领', '已修复', '已忽略'][s] || '-'
 
 onMounted(async () => {
-  const [r, r2] = await Promise.all([
-    reviewApi.results(),
-    repositoryApi.list()
-  ])
-  if (r.success) results.value = r.data
+  const r2 = await repositoryApi.list()
   if (r2.success) repos.value = r2.data
+  loadData()
 })
 
+function onFilterChange() {
+  pageIndex.value = 1
+  loadData()
+}
+
 async function loadData() {
-  const res: any = await reviewApi.results(0, filterRepo.value || 0)
+  const res: any = await reviewApi.results({
+    repositoryId: filterRepo.value || undefined,
+    severity: filterSev.value || undefined,
+    status: filterStatus.value !== '' ? Number(filterStatus.value) : undefined,
+    pageIndex: pageIndex.value,
+    pageSize: pageSize.value
+  })
   if (res.success) {
-    let data = res.data
-    if (filterSev.value) data = data.filter((x: any) => x.severity === filterSev.value)
-    if (filterStatus.value !== '') data = data.filter((x: any) => x.status === Number(filterStatus.value))
-    results.value = data
+    const paged = res.data as any
+    results.value = paged?.data ?? []
+    total.value = paged?.total ?? 0
   }
 }
 

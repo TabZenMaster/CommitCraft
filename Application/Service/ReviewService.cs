@@ -202,51 +202,102 @@ public class ReviewService : IReviewService
             await _notify.NotifyReviewCompletedAsync(commit.RepositoryId, reviewCommitId, true);
     }
 
-    // ========== Gitee API ==========
+    // ========== GitHub / Gitee 统一 API ==========
+
+    /// <summary>根据仓库 URL 判断平台</summary>
+    private static (string owner, string repo, string platform) ParseRepoUrl(string url)
+    {
+        var uri = new Uri(url.TrimEnd('/'));
+        var host = uri.Host.ToLower();
+        var parts = uri.AbsolutePath.Trim('/').Split('/', 2);
+        var platform = host switch
+        {
+            "github.com" => "github",
+            "gitee.com" => "gitee",
+            _ => "gitee"
+        };
+        return (parts[0], parts[1], platform);
+    }
+
+    /// <summary>获取平台 API 基础地址</summary>
+    private static string GetPlatformApiBase(string platform) => platform.ToLower() switch
+    {
+        "github" => "https://api.github.com",
+        "gitee" => "https://gitee.com/api/v5",
+        _ => "https://gitee.com/api/v5"
+    };
 
     private async Task<List<CommitFile>> FetchCommitDiff(Repository repo, string sha)
     {
         var client = _httpClientFactory.CreateClient();
-        client.DefaultRequestHeaders.Add("Accept", "application/json");
-        if (!string.IsNullOrEmpty(repo.GiteeToken))
-            client.DefaultRequestHeaders.Add("Authorization", $"token {repo.GiteeToken}");
 
-        var repoSlug = string.IsNullOrEmpty(repo.RepoPath) ? repo.RepoName : repo.RepoPath;
+        var (owner, repoSlug, platform) = ParseRepoUrl(repo.RepoUrl);
+        var apiBase = GetPlatformApiBase(platform);
+        var token = repo.GiteeToken;
 
-        // 先获取该 commit 的 parent sha
-        var commitUrl = $"https://gitee.com/api/v5/repos/{repo.Owner}/{repoSlug}/commits/{sha}";
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: GET {commitUrl}\n");
+        // GitHub 用 header 认证（Bearer），Gitee 用 query param（token）
+        if (platform == "github")
+        {
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+            client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("Authorization", $"token {token}");
+        }
+
+        // 获取该 commit 的 parent sha
+        string? parentSha = null;
+        string commitUrl = platform == "github"
+            ? $"{apiBase}/repos/{owner}/{repoSlug}/commits/{sha}"
+            : (string.IsNullOrEmpty(token)
+                ? $"{apiBase}/repos/{owner}/{repoSlug}/commits/{sha}"
+                : $"{apiBase}/repos/{owner}/{repoSlug}/commits/{sha}?access_token={token}");
+
+        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {commitUrl}\n");
         var commitResp = await client.GetAsync(commitUrl);
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: commitResp={(int)commitResp.StatusCode}\n");
         if (!commitResp.IsSuccessStatusCode) return new List<CommitFile>();
+
         var commitJson = await commitResp.Content.ReadAsStringAsync();
         var commitInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(commitJson);
         var parents = commitInfo?["parents"] as JArray;
-        var parentSha = parents?.FirstOrDefault()?["sha"]?.ToString();
+        parentSha = parents?.FirstOrDefault()?["sha"]?.ToString();
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: parentSha={parentSha ?? "null"}\n");
 
         // 使用 compare API 获取 diff
-        var diffUrl = $"https://gitee.com/api/v5/repos/{repo.Owner}/{repoSlug}/compare/{parentSha ?? sha}...{sha}";
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: GET {diffUrl}\n");
+        // GitHub: /repos/{owner}/{repo}/compare/{base}...{head}
+        // Gitee:  /repos/{owner}/{repo}/compare/{base}...{head}?access_token=xxx
+        string diffUrl = platform == "github"
+            ? $"{apiBase}/repos/{owner}/{repoSlug}/compare/{parentSha ?? sha}...{sha}"
+            : (string.IsNullOrEmpty(token)
+                ? $"{apiBase}/repos/{owner}/{repoSlug}/compare/{parentSha ?? sha}...{sha}"
+                : $"{apiBase}/repos/{owner}/{repoSlug}/compare/{parentSha ?? sha}...{sha}?access_token={token}");
+
+        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {diffUrl}\n");
         var diffResp = await client.GetAsync(diffUrl);
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: diffResp={(int)diffResp.StatusCode}\n");
         if (!diffResp.IsSuccessStatusCode) return new List<CommitFile>();
+
         var diffJson = await diffResp.Content.ReadAsStringAsync();
         var diffInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(diffJson) ?? new();
         var files = diffInfo["files"] as JArray ?? new JArray();
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: files count={files.Count}\n");
+        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: files count={files.Count}\n");
 
+        // GitHub: diff 在 files[].patch；Gitee: diff 在 files[].diff，统一处理
         return files.Select(f =>
         {
-            var diffVal = f["diff"]?.ToString();
-            var patchVal = f["patch"]?.ToString();
+            var diffVal = f["patch"]?.ToString() ?? f["diff"]?.ToString() ?? "";
+            var filename = f["filename"]?.ToString() ?? f["new_path"]?.ToString() ?? "";
             return new CommitFile
             {
-                filename = f["filename"]?.ToString() ?? f["new_path"]?.ToString() ?? "",
+                filename = filename,
                 status = f["status"]?.ToString() ?? "",
                 additions = f["additions"]?.ToString(),
                 deletions = f["deletions"]?.ToString(),
-                diff = string.IsNullOrWhiteSpace(diffVal) ? (patchVal ?? "") : diffVal
+                diff = diffVal
             };
         }).ToList();
     }
@@ -451,6 +502,35 @@ src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存
         return await query.OrderBy(x => x.Severity, OrderByType.Desc)
             .OrderBy(x => x.CreateTime, OrderByType.Desc)
             .ToListAsync();
+    }
+
+    public async Task<PagedResult<ReviewResult>> GetResultsPageAsync(int reviewCommitId, int repositoryId, int pageIndex, int pageSize, string? severity, int? status)
+    {
+        var query = _db.Queryable<ReviewResult>().Where(x => !x.IsDeleted);
+        if (reviewCommitId > 0)
+            query = query.Where(x => x.ReviewCommitId == reviewCommitId);
+        if (repositoryId > 0)
+            query = query.Where(x => x.RepositoryId == repositoryId);
+        if (!string.IsNullOrEmpty(severity))
+            query = query.Where(x => x.Severity == severity);
+        if (status.HasValue)
+            query = query.Where(x => x.Status == status.Value);
+
+        var total = await query.CountAsync();
+        var data = await query
+            .OrderBy(x => x.Severity, OrderByType.Desc)
+            .OrderBy(x => x.CreateTime, OrderByType.Desc)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResult<ReviewResult>
+        {
+            Data = data,
+            Total = total,
+            PageIndex = pageIndex,
+            PageSize = pageSize
+        };
     }
 
     public async Task<Result> ClaimIssueAsync(int resultId, int userId, string userName)

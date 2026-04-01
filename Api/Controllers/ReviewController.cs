@@ -31,10 +31,16 @@ public class ReviewController : ControllerBase
     public async Task<Result> TriggerReview([FromBody] TriggerReviewDto dto) =>
         await _service.TriggerReviewAsync(dto.RepositoryId, dto.CommitSha, dto.CommitMessage, dto.Committer, dto.CommittedAt, dto.BranchName);
 
-    /// <summary>获取审核结果列表</summary>
+    /// <summary>获取审核结果列表（分页）</summary>
     [HttpGet("results")]
-    public async Task<Result<object>> GetResults([FromQuery] int reviewCommitId = 0, [FromQuery] int repositoryId = 0) =>
-        Result<object>.Ok(await _service.GetResultsAsync(reviewCommitId, repositoryId));
+    public async Task<Result<object>> GetResults(
+        [FromQuery] int reviewCommitId = 0,
+        [FromQuery] int repositoryId = 0,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? severity = null,
+        [FromQuery] int? status = null) =>
+        Result<object>.Ok(await _service.GetResultsPageAsync(reviewCommitId, repositoryId, pageIndex, pageSize, severity, status));
 
     /// <summary>认领问题</summary>
     [Authorize(Roles = "admin,reviewer,developer")]

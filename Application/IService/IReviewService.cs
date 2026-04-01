@@ -14,6 +14,8 @@ public interface IReviewService
     Task ExecuteReviewAsync(int reviewCommitId);
     /// <summary>获取审核结果列表</summary>
     Task<List<ReviewResult>> GetResultsAsync(int reviewCommitId = 0, int repositoryId = 0);
+    /// <summary>获取审核结果列表（分页）</summary>
+    Task<PagedResult<ReviewResult>> GetResultsPageAsync(int reviewCommitId, int repositoryId, int pageIndex, int pageSize, string? severity, int? status);
     /// <summary>认领问题</summary>
     Task<Result> ClaimIssueAsync(int resultId, int userId, string userName);
     /// <summary>处理问题（修复/忽略）</summary>

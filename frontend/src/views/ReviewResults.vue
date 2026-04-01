@@ -41,7 +41,18 @@
       </el-table-column>
     </el-table>
 
-    <el-empty v-else description="暂无审核结果，问题可能已被修复或 AI 未发现问题" />
+    <el-empty v-else-if="!loading" description="暂无审核结果，问题可能已被修复或 AI 未发现问题" />
+
+    <el-pagination
+      v-if="total > 0"
+      v-model:current-page="pageIndex"
+      v-model:page-size="pageSize"
+      :page-sizes="[20, 50, 100]"
+      :total="total"
+      layout="total, sizes, prev, pager, next"
+      @size-change="loadData"
+      @current-change="loadData"
+      style="margin-top:16px;justify-content:center" />
 
     <!-- 代码详情弹窗 -->
     <el-dialog v-model="codeDialogVisible" :title="currentCode?.filePath" width="800px" destroy-on-close>
@@ -53,7 +64,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { reviewApi } from '@/api'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.min.css'
@@ -65,11 +75,14 @@ const taskInfo = ref<any>(null)
 const results = ref<any[]>([])
 const codeDialogVisible = ref(false)
 const currentCode = ref<any>(null)
+const loading = ref(false)
+const pageIndex = ref(1)
+const pageSize = ref(50)
+const total = ref(0)
 
 const highlightedCode = computed(() => {
   if (!currentCode.value?.diffContent) return ''
   const code = currentCode.value.diffContent
-  // 从文件路径推断语言
   const ext = currentCode.value.filePath?.split('.').pop() ?? ''
   const langMap: Record<string, string> = {
     cs: 'csharp', js: 'javascript', ts: 'typescript', vue: 'xml',
@@ -87,23 +100,33 @@ function showCode(row: any) {
   codeDialogVisible.value = true
 }
 
-const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: 'info', suggestion: 'info' }[s] || 'info')
-const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '警告', suggestion: '建议' }[s] || s)
-const typeTag = (s: string) => ({ security: 'danger', correctness: 'warning', performance: 'info', maintainability: 'info', best_practice: 'info', code_style: 'info', other: 'info' }[s] || 'info')
+const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: '', suggestion: 'info' }[s] || '')
+const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
+const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
 const statusTag = (s: number) => ['', 'warning', 'success', 'info'][s] || 'info'
 const statusName = (s: number) => ['待处理', '已认领', '已修复', '已忽略'][s] || '-'
 
-onMounted(async () => {
-  const [t, r] = await Promise.all([
-    reviewApi.task(taskId),
-    reviewApi.results(taskId)
-  ])
-  if (t.success) taskInfo.value = t.data
-  if (r.success) {
+async function loadData() {
+  loading.value = true
+  const res: any = await reviewApi.results({
+    reviewCommitId: taskId,
+    pageIndex: pageIndex.value,
+    pageSize: pageSize.value
+  })
+  loading.value = false
+  if (res.success) {
+    const paged = res.data as any
     const order = { critical: 0, major: 1, minor: 2, suggestion: 3 }
-    results.value = r.data.sort((a: any, b: any) => (order[a.severity] ?? 99) - (order[b.severity] ?? 99))
+    results.value = (paged?.data ?? []).sort((a: any, b: any) => (order[a.severity] ?? 99) - (order[b.severity] ?? 99))
+    total.value = paged?.total ?? 0
   }
+}
+
+onMounted(async () => {
+  const t = await reviewApi.task(taskId)
+  if (t.success) taskInfo.value = t.data
+  loadData()
 })
 </script>
 

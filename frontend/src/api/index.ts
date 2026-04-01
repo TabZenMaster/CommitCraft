@@ -40,8 +40,14 @@ export const reviewApi = {
     committedAt: string
     branchName: string
   }) => request.post('/Review/trigger', data),
-  results: (reviewCommitId = 0, repositoryId = 0) =>
-    request.get('/Review/results', { params: { reviewCommitId, repositoryId } }),
+  results: (params: {
+    reviewCommitId?: number
+    repositoryId?: number
+    pageIndex?: number
+    pageSize?: number
+    severity?: string
+    status?: number
+  }) => request.get('/Review/results', { params }),
   claim: (id: number) => request.post('/Review/claim', { id }),
   handle: (data: { id: number; status: number; memo?: string }) => request.post('/Review/handle', data),
   retry: (id: number) => request.post(`/Review/retry/${id}`),

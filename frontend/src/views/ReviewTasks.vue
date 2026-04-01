@@ -56,7 +56,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { reviewApi, repositoryApi } from '@/api'
-import { on } from '@/utils/eventBus'
+import { on, off } from '@/utils/eventBus'
 
 const router = useRouter()
 const tasks = ref<any[]>([])
