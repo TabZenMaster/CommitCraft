@@ -33,10 +33,12 @@ builder.Services.AddHttpClient();
 // ===== Services =====
 builder.Services.AddSingleton<ReviewQueueService>();
 builder.Services.AddHostedService<ReviewBackgroundService>();
+builder.Services.AddHostedService<ReviewSchedulerHostedService>();
 builder.Services.AddScoped<ISysUserService, SysUserService>();
 builder.Services.AddScoped<IModelConfigService, ModelConfigService>();
 builder.Services.AddScoped<IRepositoryService, RepositoryService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IReviewScheduleService, ReviewScheduleService>();
 builder.Services.AddScoped<INotificationService, SignalRNotificationService>();
 
 // ===== JWT =====
@@ -111,6 +113,7 @@ void InitDatabase(IServiceProvider sp)
     db.CodeFirst.InitTables<ReviewResult>();
     db.CodeFirst.InitTables<HandlerLog>();
     db.CodeFirst.InitTables<SysUser>();
+    db.CodeFirst.InitTables<ReviewSchedule>();
 
     var exists = db.Queryable<SysUser>().Where(x => x.Username == "admin" && !x.IsDeleted).Any();
     if (!exists)

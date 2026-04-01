@@ -121,10 +121,19 @@ public class ReviewService : IReviewService
         try
         {
             // 更新状态为审核中
+            var commitInfo = await _db.Queryable<ReviewCommit>()
+                .Where(x => x.Id == reviewCommitId)
+                .Select(x => new { x.RepositoryId })
+                .FirstAsync();
+
             await _db.Updateable<ReviewCommit>()
                 .SetColumns(x => x.Status == 1)
                 .Where(x => x.Id == reviewCommitId)
                 .ExecuteCommandAsync();
+
+            // SignalR 通知开始审核
+            if (_notify != null && commitInfo != null)
+                await _notify.NotifyReviewStartedAsync(commitInfo.RepositoryId, reviewCommitId);
 
             var task = await GetTaskByIdAsync(reviewCommitId);
             if (task == null) return;

@@ -60,3 +60,13 @@ export const sysUserApi = {
   update: (data: any) => request.post('/SysUser/update', data),
   delete: (id: number) => request.delete(`/SysUser/${id}`),
 }
+
+export const scheduleApi = {
+  list: () => request.get('/Schedule/list'),
+  add: (data: { repositoryId: number; branchName: string; cronExpr: string; enabled?: number }) =>
+    request.post('/Schedule/add', data),
+  update: (data: { id: number; branchName: string; cronExpr: string; enabled: number }) =>
+    request.post('/Schedule/update', data),
+  delete: (id: number) => request.post('/Schedule/delete', { id }),
+  trigger: (id: number) => request.post('/Schedule/trigger', { id }),
+}

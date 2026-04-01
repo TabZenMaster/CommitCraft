@@ -16,6 +16,9 @@
         <el-menu-item index="/settings/repo">
           <span class="nav-icon">📦</span><span>仓库管理</span>
         </el-menu-item>
+        <el-menu-item index="/settings/schedule">
+          <span class="nav-icon">📅</span><span>定时计划</span>
+        </el-menu-item>
         <el-menu-item index="/review">
           <span class="nav-icon">🔍</span><span>审核任务</span>
         </el-menu-item>
@@ -64,7 +67,7 @@ const userInitials = computed(() => (user.realName || user.username || 'U').slic
 
 const pageTitles: Record<string, string> = {
   '/dashboard': '数据概览', '/settings/model': '模型配置',
-  '/settings/repo': '仓库管理', '/review': '审核任务',
+  '/settings/repo': '仓库管理', '/settings/schedule': '定时计划', '/review': '审核任务',
   '/review/issues': '问题处理台', '/system/user': '用户管理',
 }
 const pageTitle = computed(() => pageTitles[route.path] || '控制台')

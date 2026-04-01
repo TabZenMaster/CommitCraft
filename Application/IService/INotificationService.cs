@@ -10,5 +10,8 @@ public interface INotificationService
 
     /// <summary>通知任务状态变更</summary>
     Task NotifyReviewCompletedAsync(int repositoryId, int reviewCommitId, bool success, string? errorMsg = null);
+
+    /// <summary>通知任务开始审核</summary>
+    Task NotifyReviewStartedAsync(int repositoryId, int reviewCommitId);
 }
 

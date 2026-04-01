@@ -67,4 +67,27 @@ public class SignalRNotificationService : INotificationService
         };
         await _hub.Clients.All.SendAsync("ReceiveNotification", payload);
     }
+
+    public async Task NotifyReviewStartedAsync(int repositoryId, int reviewCommitId)
+    {
+        var repo = await _db.Queryable<Repository>()
+            .Where(x => x.Id == repositoryId)
+            .Select(x => new { x.RepoName })
+            .FirstAsync();
+        var commit = await _db.Queryable<ReviewCommit>()
+            .Where(x => x.Id == reviewCommitId)
+            .Select(x => new { x.CommitSha })
+            .FirstAsync();
+
+        var sha = commit?.CommitSha?.Length > 8 ? commit.CommitSha[..8] : commit?.CommitSha;
+        var payload = new
+        {
+            title = "🔄 审核开始",
+            message = $"「{repo?.RepoName}」{sha} 开始审核中...",
+            type = "info",
+            timestamp = DateTime.Now,
+            data = new { repositoryId, reviewCommitId, success = true, repoName = repo?.RepoName }
+        };
+        await _hub.Clients.All.SendAsync("ReceiveNotification", payload);
+    }
 }
