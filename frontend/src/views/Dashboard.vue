@@ -1,5 +1,11 @@
 <template>
   <div class="dashboard">
+    <div class="page-header" style="margin-bottom:16px">
+      <el-select v-model="filterRepo" clearable placeholder="全部仓库" style="width:180px" @change="loadData">
+        <el-option v-for="r in repos" :key="r.id" :label="r.repoName" :value="r.id" />
+      </el-select>
+    </div>
+
     <el-row :gutter="16" class="kpi-row">
       <el-col :span="6" v-for="(item, i) in kpiList" :key="i">
         <el-card class="kpi-card" shadow="hover">
@@ -65,9 +71,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { reviewApi } from '@/api'
+import { reviewApi, repositoryApi } from '@/api'
 
 const stats = ref<any>({})
+const repos = ref<any[]>([])
+const filterRepo = ref<number | undefined>(undefined)
 
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '警告', suggestion: '建议' }[s] || s)
 const typeName = (s: string) => ({
@@ -87,14 +95,21 @@ const kpiList = computed(() => [
   { icon: '✅', label: '已修复', value: stats.value.fixedCount || 0, color: '#67c23a' },
 ])
 
-onMounted(async () => {
-  const res: any = await reviewApi.statistics()
+async function loadData() {
+  const res: any = await reviewApi.statistics(filterRepo.value)
   if (res.success) stats.value = res.data
+}
+
+onMounted(async () => {
+  const r = await repositoryApi.list()
+  if (r.success) repos.value = r.data || []
+  loadData()
 })
 </script>
 
 <style scoped>
 .dashboard {}
+.page-header { display: flex; align-items: center; gap: 12px; }
 
 /* KPI 卡片 */
 .kpi-row { margin-bottom: 16px; }

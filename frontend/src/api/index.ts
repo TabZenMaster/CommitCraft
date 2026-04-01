@@ -51,7 +51,7 @@ export const reviewApi = {
   claim: (id: number) => request.post('/Review/claim', { id }),
   handle: (data: { id: number; status: number; memo?: string }) => request.post('/Review/handle', data),
   retry: (id: number) => request.post(`/Review/retry/${id}`),
-  statistics: (repositoryId = 0) => request.get('/Review/statistics', { params: { repositoryId } }),
+  statistics: (repositoryId?: number) => request.get('/Review/statistics', { params: repositoryId ? { repositoryId } : {} }),
 }
 
 export const sysUserApi = {
