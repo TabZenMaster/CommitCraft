@@ -202,22 +202,23 @@ watch(() => form.value.repositoryId, async (repoId) => {
 /** 根据当前 form 状态重建 cronExpr，格式：6字段 秒 分 时 日 月 周 */
 function rebuildCron() {
   const f = form.value
+  // 6字段格式：秒 分 时 日 月 周
   if (f.execType === 'interval') {
     if (f.intervalUnit === 'minute') {
-      // 每隔N分钟：秒=0, 分=*/N, 时=*, 日=*, 月=*
-      f.cronExpr = `0 */${f.intervalVal} * * *`
+      // 每隔N分钟：秒=0, 分=*/N, 时=*, 日=*, 月=*, 周=*
+      f.cronExpr = `0 */${f.intervalVal} * * * *`
     } else {
       // 每隔N小时：秒=0, 分=0, 时=*/N, 日=*, 月=*, 周=*
-      f.cronExpr = `0 0 */${f.intervalVal} * *`
+      f.cronExpr = `0 0 */${f.intervalVal} * * *`
     }
   } else {
     const [h, m] = (f._time || '09:00').split(':')
     const hh = h.padStart(2, '0')
     const mm = m.padStart(2, '0')
-    if (f.schedFreq === 'daily') f.cronExpr = `0 ${mm} ${hh} * * *`
-    else if (f.schedFreq === 'workday') f.cronExpr = `0 ${mm} ${hh} * * 1-5`
-    else if (f.schedFreq === 'weekly') f.cronExpr = `0 ${mm} ${hh} * * ${f.weekday}`
-    else if (f.schedFreq === 'monthly') f.cronExpr = `0 ${mm} ${hh} ${f.monthDay} * *`
+    if (f.schedFreq === 'daily') f.cronExpr = `0 ${mm} ${hh} * * * *`
+    else if (f.schedFreq === 'workday') f.cronExpr = `0 ${mm} ${hh} * * 1-5 *`
+    else if (f.schedFreq === 'weekly') f.cronExpr = `0 ${mm} ${hh} * * ${f.weekday} *`
+    else if (f.schedFreq === 'monthly') f.cronExpr = `0 ${mm} ${hh} ${f.monthDay} * * *`
   }
 }
 
