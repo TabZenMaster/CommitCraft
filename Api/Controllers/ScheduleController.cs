@@ -65,6 +65,16 @@ public class ScheduleController : ControllerBase
         await _service.TriggerScheduleAsync(dto.Id);
         return Result.Ok("触发成功，请查看审核任务列表");
     }
+
+    /// <summary>
+    /// 执行日志列表
+    /// </summary>
+    [HttpGet("logs")]
+    public async Task<Result<object>> GetLogs([FromQuery] int scheduleId = 0, [FromQuery] int limit = 50)
+    {
+        var logs = await _service.GetLogsAsync(scheduleId, limit);
+        return Result<object>.Ok(logs);
+    }
 }
 
 public class AddScheduleDto

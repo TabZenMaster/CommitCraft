@@ -107,6 +107,9 @@ app.Run("http://0.0.0.0:8080");
 void InitDatabase(IServiceProvider sp)
 {
     var db = sp.GetRequiredService<ISqlSugarClient>();
+    Console.WriteLine("[Init] CreateDatabase...");
+    db.DbMaintenance.CreateDatabase(); // 库不存在则自动创建
+    Console.WriteLine("[Init] InitTables...");
     db.CodeFirst.InitTables<ModelConfig>();
     db.CodeFirst.InitTables<Repository>();
     db.CodeFirst.InitTables<ReviewCommit>();
@@ -114,6 +117,7 @@ void InitDatabase(IServiceProvider sp)
     db.CodeFirst.InitTables<HandlerLog>();
     db.CodeFirst.InitTables<SysUser>();
     db.CodeFirst.InitTables<ReviewSchedule>();
+    db.CodeFirst.InitTables<ReviewScheduleLog>();
 
     var exists = db.Queryable<SysUser>().Where(x => x.Username == "admin" && !x.IsDeleted).Any();
     if (!exists)

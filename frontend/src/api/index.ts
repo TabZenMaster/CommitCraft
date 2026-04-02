@@ -69,4 +69,5 @@ export const scheduleApi = {
     request.post('/Schedule/update', data),
   delete: (id: number) => request.post('/Schedule/delete', { id }),
   trigger: (id: number) => request.post('/Schedule/trigger', { id }),
+  getLogs: (scheduleId = 0, limit = 50) => request.get('/Schedule/logs', { params: { scheduleId, limit } }),
 }

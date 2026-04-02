@@ -10,6 +10,8 @@ public interface IReviewScheduleService
     Task<int> CreateAsync(int repositoryId, string branchName, string cronExpr);
     Task UpdateAsync(int id, string branchName, string cronExpr, int enabled);
     Task DeleteAsync(int id);
+    Task MarkTriggeredAsync(int scheduleId, DateTime triggerTime);
     Task<List<CommitInfo>> GetUnreviewedCommitsAsync(int repositoryId, string branchName);
     Task TriggerScheduleAsync(int scheduleId);
+    Task<List<ReviewScheduleLog>> GetLogsAsync(int scheduleId = 0, int limit = 50);
 }

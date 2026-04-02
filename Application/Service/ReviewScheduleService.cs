@@ -75,6 +75,17 @@ public class ReviewScheduleService : IReviewScheduleService
     }
 
     /// <summary>
+    /// 立即标记计划已触发，防止同一触发点被重复执行
+    /// </summary>
+    public async Task MarkTriggeredAsync(int scheduleId, DateTime triggerTime)
+    {
+        await _db.Updateable<ReviewSchedule>()
+            .SetColumns(x => x.LastTriggerAt == triggerTime)
+            .Where(x => x.Id == scheduleId)
+            .ExecuteCommandAsync();
+    }
+
+    /// <summary>
     /// 扫描仓库分支，获取从上次审核之后的所有未审核 commits
     /// </summary>
     public async Task<List<CommitInfo>> GetUnreviewedCommitsAsync(int repositoryId, string branchName)
@@ -123,22 +134,36 @@ public class ReviewScheduleService : IReviewScheduleService
         if (compareResp.IsSuccessStatusCode)
         {
             var compareJson = await compareResp.Content.ReadFromJsonAsync<JsonElement>();
-            foreach (var c in compareJson.GetProperty("commits").EnumerateArray())
+            if (compareJson.TryGetProperty("commits", out var commitsArr))
             {
-                var sha = c.GetProperty("sha").GetString();
-                // 跳过已经审核过的（如果 lastReviewed 为空则不跳过首个）
-                if (!string.IsNullOrEmpty(lastReviewed) && sha == lastReviewed) continue;
-                commits.Add(new CommitInfo
+                foreach (var c in commitsArr.EnumerateArray())
                 {
-                    Sha = sha!,
-                    Message = c.GetProperty("commit").GetProperty("message").GetString() ?? "",
-                    Committer = c.GetProperty("committer").GetProperty("login").GetString() ?? "",
-                    CommittedAt = c.GetProperty("commit").GetProperty("created_at").GetDateTime()
-                });
+                    var sha = c.TryGetProperty("sha", out var shaEl) ? shaEl.GetString() : null;
+                    if (string.IsNullOrEmpty(sha)) continue;
+                    if (!string.IsNullOrEmpty(lastReviewed) && sha == lastReviewed) continue;
+
+                    var msg = c.TryGetProperty("commit", out var commitEl) && commitEl.TryGetProperty("message", out var msgEl)
+                        ? msgEl.GetString() ?? ""
+                        : "";
+                    var committerLogin = c.TryGetProperty("committer", out var commEl) && commEl.TryGetProperty("login", out var loginEl)
+                        ? loginEl.GetString() ?? ""
+                        : "";
+                    var committedAt = c.TryGetProperty("commit", out var caEl) && caEl.TryGetProperty("created_at", out var caDateEl)
+                        ? caDateEl.GetDateTime()
+                        : DateTime.UtcNow;
+
+                    commits.Add(new CommitInfo
+                    {
+                        Sha = sha!,
+                        Message = msg,
+                        Committer = committerLogin,
+                        CommittedAt = committedAt
+                    });
+                }
             }
         }
 
-        // 如果 compare 失败，至少尝试获取最新 commit
+        // 如果 compare 失败（commits为空），至少尝试获取最新 commit
         if (commits.Count == 0 && lastReviewed != latestSha)
         {
             var commitUrl = $"https://gitee.com/api/v5/repos/{owner}/{repoPath}/commits/{latestSha}?access_token={token}";
@@ -146,12 +171,15 @@ public class ReviewScheduleService : IReviewScheduleService
             if (commitResp.IsSuccessStatusCode)
             {
                 var cj = await commitResp.Content.ReadFromJsonAsync<JsonElement>();
+                var msg = cj.TryGetProperty("commit", out var c1) && c1.TryGetProperty("message", out var m1) ? m1.GetString() ?? "" : "";
+                var committer = cj.TryGetProperty("committer", out var c2) && c2.TryGetProperty("login", out var m2) ? m2.GetString() ?? "" : "";
+                var committedAt = cj.TryGetProperty("commit", out var c3) && c3.TryGetProperty("created_at", out var m3) ? m3.GetDateTime() : DateTime.UtcNow;
                 commits.Add(new CommitInfo
                 {
                     Sha = latestSha!,
-                    Message = cj.GetProperty("commit").GetProperty("message").GetString() ?? "",
-                    Committer = cj.GetProperty("committer").GetProperty("login").GetString() ?? "",
-                    CommittedAt = cj.GetProperty("commit").GetProperty("created_at").GetDateTime()
+                    Message = msg,
+                    Committer = committer,
+                    CommittedAt = committedAt
                 });
             }
         }
@@ -167,24 +195,62 @@ public class ReviewScheduleService : IReviewScheduleService
         var schedule = await GetByIdAsync(scheduleId);
         if (schedule == null || schedule.Enabled != 1) return;
 
-        var commits = await GetUnreviewedCommitsAsync(schedule.RepositoryId, schedule.BranchName);
-        foreach (var commit in commits)
+        var startTime = DateTime.UtcNow;
+        var log = new ReviewScheduleLog
         {
-            await _reviewService.TriggerReviewAsync(
-                schedule.RepositoryId,
-                commit.Sha,
-                commit.Message,
-                commit.Committer,
-                commit.CommittedAt,
-                schedule.BranchName);
-            _logger.LogInformation("Schedule {ScheduleId} 触发：仓库 {RepoId} 分支 {Branch} 提交 {Sha} 已入队",
-                scheduleId, schedule.RepositoryId, schedule.BranchName, commit.Sha[..Math.Min(8, commit.Sha.Length)]);
-        }
+            ScheduleId = scheduleId,
+            RepositoryId = schedule.RepositoryId,
+            BranchName = schedule.BranchName,
+            TriggerAt = startTime,
+            Status = 1,
+            NewCommits = 0,
+            Enqueued = 0
+        };
 
-        // 更新最后触发时间
-        await _db.Updateable<ReviewSchedule>()
-            .SetColumns(x => x.LastTriggerAt == DateTime.Now)
-            .Where(x => x.Id == scheduleId)
-            .ExecuteCommandAsync();
+        try
+        {
+            var commits = await GetUnreviewedCommitsAsync(schedule.RepositoryId, schedule.BranchName);
+            log.NewCommits = commits.Count;
+
+            foreach (var commit in commits)
+            {
+                await _reviewService.TriggerReviewAsync(
+                    schedule.RepositoryId,
+                    commit.Sha,
+                    commit.Message,
+                    commit.Committer,
+                    commit.CommittedAt,
+                    schedule.BranchName);
+                log.Enqueued++;
+                _logger.LogInformation("Schedule {ScheduleId} 入队：仓库 {RepoId} 分支 {Branch} 提交 {Sha}",
+                    scheduleId, schedule.RepositoryId, schedule.BranchName, commit.Sha[..Math.Min(8, commit.Sha.Length)]);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Status = 0;
+            log.ErrorMessage = ex.Message;
+            _logger.LogError(ex, "Schedule {ScheduleId} 执行异常", scheduleId);
+        }
+        finally
+        {
+            log.DurationSeconds = (int)(DateTime.UtcNow - startTime).TotalSeconds;
+            await _db.Insertable(log).ExecuteCommandAsync();
+        }
+    }
+
+    public async Task<List<ReviewScheduleLog>> GetLogsAsync(int scheduleId = 0, int limit = 50)
+    {
+        var q = _db.Queryable<ReviewScheduleLog>().Where(x => !x.IsDeleted);
+        if (scheduleId > 0)
+            q = q.Where(x => x.ScheduleId == scheduleId);
+        var logs = await q.OrderByDescending(x => x.TriggerAt).Take(limit).ToListAsync();
+
+        // 填充仓库名
+        var repos = await _db.Queryable<Repository>().Where(x => !x.IsDeleted).ToListAsync();
+        foreach (var log in logs)
+            log.RepoName = repos.FirstOrDefault(r => r.Id == log.RepositoryId)?.RepoName;
+
+        return logs;
     }
 }
