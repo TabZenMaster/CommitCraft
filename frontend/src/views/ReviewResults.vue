@@ -124,11 +124,44 @@ function renderDiff(content: string) {
     drawFileList: false,
     fileContentToggle: false,
     highlight: true,
-    synchronizedScroll: false,
+    synchronizedScroll: true,
     matching: 'lines',
     outputFormat: 'side-by-side',
     colorScheme: 'dark'
   }) as string
+
+  nextTick(() => {
+    if (!diffRef.value) return
+    const diffContainers = diffRef.value.querySelectorAll('.d2h-files-diff')
+    diffContainers.forEach(container => {
+      const panes = container.querySelectorAll('.d2h-file-side-diff')
+      if (panes.length === 2) {
+        const leftPane = panes[0] as HTMLElement
+        const rightPane = panes[1] as HTMLElement
+        
+        let isSyncingLeftScroll = false
+        let isSyncingRightScroll = false
+
+        leftPane.addEventListener('scroll', () => {
+          if (!isSyncingLeftScroll) {
+            isSyncingRightScroll = true
+            rightPane.scrollTop = leftPane.scrollTop
+            rightPane.scrollLeft = leftPane.scrollLeft
+          }
+          isSyncingLeftScroll = false
+        })
+
+        rightPane.addEventListener('scroll', () => {
+          if (!isSyncingRightScroll) {
+            isSyncingLeftScroll = true
+            leftPane.scrollTop = rightPane.scrollTop
+            leftPane.scrollLeft = rightPane.scrollLeft
+          }
+          isSyncingRightScroll = false
+        })
+      }
+    })
+  })
 }
 
 const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: '', suggestion: 'info' }[s] || '')
@@ -205,15 +238,40 @@ onMounted(async () => {
 /* diff 区域 */
 .cv-diff {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
 }
-.cv-diff .d2h-file-side-diff { overflow-x: auto; overflow-y: auto !important; }
-.cv-diff .d2h-code-side-linenumber { position: sticky !important; left: 0; }
+.cv-diff > .d2h-wrapper,
+.cv-diff .d2h-file-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0 !important;
+  border-radius: 0;
+  border: none;
+}
+.cv-diff .d2h-files-diff {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  min-height: 0;
+}
+.cv-diff .d2h-file-side-diff {
+  height: 100%;
+  overflow: auto !important;
+}
+.cv-diff .d2h-code-side-linenumber {
+  position: sticky !important;
+  left: 0;
+  z-index: 1;
+}
 
 /* 弹窗打开时锁定背景滚动 */
-:global(html.cv-lock),
-:global(html.cv-lock body) {
+html.cv-lock,
+html.cv-lock body {
   overflow: hidden !important;
   height: 100% !important;
 }
