@@ -41,9 +41,13 @@ public class SysUserService : ISysUserService
         return await _db.Updateable(model).ExecuteCommandAsync() > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id) =>
-        await _db.Updateable<SysUser>()
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var user = await _db.Queryable<SysUser>().Where(x => x.Id == id && !x.IsDeleted).FirstAsync();
+        if (user?.Username == "admin") return false; // 禁止删除 admin
+        return await _db.Updateable<SysUser>()
             .SetColumns(x => x.IsDeleted == true)
             .Where(x => x.Id == id)
             .ExecuteCommandAsync() > 0;
+    }
 }

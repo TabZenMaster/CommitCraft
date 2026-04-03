@@ -556,7 +556,6 @@ cache[key] = result;
                 Description = i.description ?? "",
                 Suggestion = i.suggestion ?? "",
                 DiffContent = diffContent,
-                HandlerId = 0,
                 Status = 0,
                 CreateTime = DateTime.Now,
                 IsDeleted = false
@@ -678,6 +677,22 @@ cache[key] = result;
             .Take(pageSize)
             .ToListAsync();
 
+        // 补齐处理人姓名（通过 HandlerUserId 关联 SysUser）
+        var userIds = data.Where(x => x.HandlerUserId > 0).Select(x => x.HandlerUserId!.Value).Distinct().ToList();
+        var userMap = new Dictionary<int, string>();
+        if (userIds.Count > 0)
+        {
+            var users = await _db.Queryable<SysUser>().Where(x => userIds.Contains(x.Id)).ToListAsync();
+            foreach (var u in users) userMap[u.Id] = u.RealName;
+        }
+        foreach (var item in data)
+        {
+            if (item.HandlerUserId > 0 && userMap.TryGetValue(item.HandlerUserId!.Value, out var name))
+                item.HandlerName = name;
+            else if (item.HandlerUserId > 0)
+                item.HandlerName = "未知";
+        }
+
         return new PagedResult<ReviewResult>
         {
             Data = data,
@@ -694,11 +709,10 @@ cache[key] = result;
         if (result == null) return Result.Fail("问题不存在");
         if (result.Status != 0) return Result.Fail("只有待处理状态可以认领");
 
-        await AddLog(resultId, userId, userName, "claim", result.Status, 1);
+        await AddLog(resultId, userId, "claim", result.Status, 1);
 
         result.Status = 1;
-        result.HandlerId = userId;
-        result.HandlerName = userName;
+        result.HandlerUserId = userId;
         await _db.Updateable(result).ExecuteCommandAsync();
         return Result.Ok("已认领");
     }
@@ -712,12 +726,11 @@ cache[key] = result;
         if (result.Status != 1 && result.Status != 0)
             return Result.Fail("当前状态不允许此操作");
 
-        await AddLog(resultId, userId, userName, status == 2 ? "fix" : "ignore",
+        await AddLog(resultId, userId, status == 2 ? "fix" : "ignore",
             result.Status, status);
 
         result.Status = status;
-        result.HandlerId = userId;
-        result.HandlerName = userName;
+        result.HandlerUserId = userId;
         result.HandledAt = DateTime.Now;
         result.HandlerMemo = memo;
         await _db.Updateable(result).ExecuteCommandAsync();
@@ -750,17 +763,18 @@ cache[key] = result;
         return Result.Ok("已重新加入队列");
     }
 
-    private async Task AddLog(int resultId, int userId, string userName, string action, int from, int to)
+    private async Task AddLog(int resultId, int userId, string action, int from, int to)
     {
         await _db.Insertable(new HandlerLog
         {
             ReviewResultId = resultId,
             OperatorId = userId,
-            OperatorName = userName,
+            OperatorUserId = userId,
             Action = action,
             FromStatus = from,
             ToStatus = to,
             CreateTime = DateTime.Now,
+            Remark = "",
             IsDeleted = false
         }).ExecuteCommandAsync();
     }
@@ -788,6 +802,123 @@ cache[key] = result;
             },
             byType = all.GroupBy(x => x.IssueType)
                 .ToDictionary(g => g.Key, g => g.Count())
+        });
+    }
+
+    /// <summary>仪表盘：最近7天趋势</summary>
+    public async Task<Result<object>> GetTrendAsync(int repositoryId = 0)
+    {
+        var since = DateTime.Today.AddDays(-6);
+        var query = _db.Queryable<ReviewResult>()
+            .Where(x => !x.IsDeleted && x.CreateTime >= since);
+        if (repositoryId > 0) query = query.Where(x => x.RepositoryId == repositoryId);
+
+        var all = await query.ToListAsync();
+        var dates = Enumerable.Range(0, 7).Select(i => since.AddDays(i).ToString("MM-dd")).ToList();
+        var counts = dates.Select(d => all.Count(x => x.CreateTime.ToString("MM-dd") == d)).ToList();
+
+        return Result<object>.Ok(new { dates, counts });
+    }
+
+    /// <summary>仪表盘：仓库问题排名</summary>
+    public async Task<Result<object>> GetRepoRankingAsync()
+    {
+        var rows = await _db.Queryable<ReviewResult>()
+            .Where(x => !x.IsDeleted)
+            .GroupBy(x => x.RepositoryId)
+            .Select(x => new { repoId = x.RepositoryId, count = SqlFunc.AggregateCount(x.Id) })
+            .ToListAsync();
+
+        var repoMap = new Dictionary<int, string>();
+        var repoIds = rows.Where(r => r.repoId > 0).Select(r => r.repoId).ToList();
+        if (repoIds.Count > 0)
+        {
+            var repos = await _db.Queryable<Repository>()
+                .Where(x => !x.IsDeleted && repoIds.Contains(x.Id))
+                .ToListAsync();
+            foreach (var r in repos) repoMap[r.Id] = r.RepoName;
+        }
+
+        var data = rows
+            .Where(r => r.repoId > 0)
+            .OrderByDescending(r => r.count)
+            .Take(10)
+            .Select(r => new { name = repoMap.GetValueOrDefault(r.repoId, "未知"), count = r.count })
+            .ToList();
+
+        return Result<object>.Ok(data);
+    }
+
+    /// <summary>仪表盘：最近审核任务</summary>
+    public async Task<Result<object>> GetRecentTasksAsync(int limit = 10)
+    {
+        var tasks = await _db.Queryable<ReviewCommit>()
+            .Where(x => !x.IsDeleted)
+            .OrderBy(x => x.CreateTime, OrderByType.Desc)
+            .Take(limit)
+            .ToListAsync();
+
+        var repoIds = tasks.Select(t => t.RepositoryId).Distinct().ToList();
+        var repoMap = new Dictionary<int, string>();
+        if (repoIds.Count > 0)
+        {
+            var repos = await _db.Queryable<Repository>()
+                .Where(x => !x.IsDeleted && repoIds.Contains(x.Id))
+                .ToListAsync();
+            foreach (var r in repos) repoMap[r.Id] = r.RepoName;
+        }
+
+        var data = tasks.Select(t => new {
+            id = t.Id,
+            repoName = repoMap.GetValueOrDefault(t.RepositoryId, "未知"),
+            branchName = t.BranchName,
+            commitSha = t.CommitSha.Length > 7 ? t.CommitSha[..7] : t.CommitSha,
+            status = t.Status,
+            createTime = t.CreateTime.ToString("MM-dd HH:mm"),
+            issueCount = t.ResultCount
+        }).ToList();
+
+        return Result<object>.Ok(data);
+    }
+
+    /// <summary>仪表盘：处理效率（平均从认领到修复的时间）</summary>
+    public async Task<Result<object>> GetHandlingStatsAsync()
+    {
+        var logs = await _db.Queryable<HandlerLog>()
+            .Where(x => !x.IsDeleted && x.Action == "fix")
+            .OrderBy(x => x.CreateTime, OrderByType.Desc)
+            .Take(100)
+            .ToListAsync();
+
+        if (logs.Count == 0) return Result<object>.Ok(new { avgHours = 0, count = 0, details = new List<object>() });
+
+        // 找 claim 日志算时间差
+        var resultIds = logs.Select(l => l.ReviewResultId).Distinct().ToList();
+        var claims = await _db.Queryable<HandlerLog>()
+            .Where(x => !x.IsDeleted && x.Action == "claim" && resultIds.Contains(x.ReviewResultId))
+            .ToListAsync();
+
+        var claimMap = claims.GroupBy(c => c.ReviewResultId).ToDictionary(g => g.Key, g => g.First().CreateTime);
+
+        var hours = new List<double>();
+        var details = new List<object>();
+        foreach (var log in logs)
+        {
+            if (claimMap.TryGetValue(log.ReviewResultId, out var claimTime))
+            {
+                var h = (log.CreateTime - claimTime).TotalHours;
+                if (h >= 0 && h < 720) // 排除异常值（>30天）
+                {
+                    hours.Add(h);
+                    details.Add(new { hours = Math.Round(h, 1), time = log.CreateTime.ToString("MM-dd HH:mm") });
+                }
+            }
+        }
+
+        return Result<object>.Ok(new {
+            avgHours = hours.Count > 0 ? Math.Round(hours.Average(), 1) : 0,
+            count = hours.Count,
+            details = details.Take(10).ToList()
         });
     }
 }

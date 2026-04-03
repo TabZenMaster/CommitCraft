@@ -24,4 +24,8 @@ public interface IReviewService
     Task<Result> RetryReviewAsync(int id);
     /// <summary>获取问题统计</summary>
     Task<Result<object>> GetIssueStatisticsAsync(int repositoryId = 0);
+    Task<Result<object>> GetTrendAsync(int repositoryId = 0);
+    Task<Result<object>> GetRepoRankingAsync();
+    Task<Result<object>> GetRecentTasksAsync(int limit = 10);
+    Task<Result<object>> GetHandlingStatsAsync();
 }

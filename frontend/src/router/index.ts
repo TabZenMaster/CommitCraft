@@ -15,6 +15,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'review', component: () => import('@/views/ReviewTasks.vue') },
       { path: 'review/result/:id', component: () => import('@/views/ReviewResults.vue') },
       { path: 'review/issues', component: () => import('@/views/IssueBoard.vue') },
+      { path: 'review/claimed', component: () => import('@/views/ClaimedIssues.vue') },
+      { path: 'review/processed', component: () => import('@/views/ProcessedIssues.vue') },
       { path: 'system/user', component: () => import('@/views/SysUser.vue') },
     ]
   }

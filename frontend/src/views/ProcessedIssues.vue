@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="page-title">🗂 问题处理台</div>
+      <div class="page-title">✅ 已处理问题</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <el-select v-model="filterRepo" clearable placeholder="仓库" style="width:140px" @change="onFilterChange">
           <el-option label="全部仓库" value="" />
@@ -13,6 +13,11 @@
           <el-option label="严重" value="major" />
           <el-option label="警告" value="minor" />
           <el-option label="建议" value="suggestion" />
+        </el-select>
+        <el-select v-model="filterStatus" clearable placeholder="处理结果" style="width:120px" @change="onFilterChange">
+          <el-option label="全部" value="" />
+          <el-option label="已修复" :value="2" />
+          <el-option label="已忽略" :value="3" />
         </el-select>
         <el-button @click="loadData">刷新</el-button>
       </div>
@@ -36,25 +41,21 @@
       </el-table-column>
       <el-table-column prop="description" label="问题描述" min-width="200" show-overflow-tooltip />
       <el-table-column prop="suggestion" label="修复建议" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="status" label="状态" width="90">
+        <template #default="{ row }">
+          <el-tag size="small" :type="statusTag(row.status)" effect="dark">{{ statusName(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="handlerName" label="处理人" width="100" />
       <el-table-column label="代码" width="90">
         <template #default="{ row }">
           <el-button v-if="row.diffContent" size="small" @click="openCode(row.diffContent)">查看代码</el-button>
           <span v-else style="color:#999;font-size:12px">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="90" fixed="right">
         <template #default="{ row }">
-          <template v-if="row.status === 0">
-            <el-button size="small" type="primary" @click="handleClaim(row)">认领</el-button>
-            <el-button size="small" type="danger" plain @click="openIgnore(row)">忽略</el-button>
-          </template>
-          <template v-else-if="row.status === 1">
-            <el-button size="small" type="success" @click="openFix(row)">标记修复</el-button>
-            <el-button size="small" type="info" plain @click="openIgnore(row)">忽略</el-button>
-          </template>
-          <template v-else>
-            <el-button size="small" type="info" plain @click="openDetail(row)">详情</el-button>
-          </template>
+          <el-button size="small" type="info" plain @click="openDetail(row)">详情</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -68,32 +69,6 @@
       @size-change="loadData"
       @current-change="loadData"
       style="margin-top:16px;justify-content:center" />
-
-    <!-- 修复弹窗 -->
-    <el-dialog v-model="fixVisible" title="标记修复" width="420px">
-      <el-form :model="fixForm" label-width="80px">
-        <el-form-item label="修复方案" required>
-          <el-input v-model="fixForm.memo" type="textarea" :rows="3" placeholder="描述修复方案（必填）" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="fixVisible = false">取消</el-button>
-        <el-button type="success" @click="doFix">确认修复</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 忽略弹窗 -->
-    <el-dialog v-model="ignoreVisible" title="标记忽略" width="420px">
-      <el-form :model="ignoreForm" label-width="80px">
-        <el-form-item label="忽略理由" required>
-          <el-input v-model="ignoreForm.memo" type="textarea" :rows="3" placeholder="必须填写忽略理由" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="ignoreVisible = false">取消</el-button>
-        <el-button type="info" @click="doIgnore">确认忽略</el-button>
-      </template>
-    </el-dialog>
 
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailVisible" title="处理详情" width="480px">
@@ -134,14 +109,11 @@ const results = ref<any[]>([])
 const repos = ref<any[]>([])
 const filterRepo = ref('')
 const filterSev = ref('')
+const filterStatus = ref('')
 const pageIndex = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
 
-const fixVisible = ref(false)
-const fixForm = ref({ id: 0, memo: '' })
-const ignoreVisible = ref(false)
-const ignoreForm = ref({ id: 0, memo: '' })
 const detailVisible = ref(false)
 const detailData = ref<any>({})
 
@@ -212,6 +184,8 @@ const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: ''
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
 const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
+const statusTag = (s: number) => [, 'warning', 'success', 'info'][s] || 'info'
+const statusName = (s: number) => ['', '', '已修复', '已忽略'][s] || '-'
 
 onMounted(async () => {
   const r2 = await repositoryApi.list()
@@ -228,37 +202,15 @@ async function loadData() {
   const res: any = await reviewApi.results({
     repositoryId: filterRepo.value || undefined,
     severity: filterSev.value || undefined,
-    status: 0,
+    status: filterStatus.value !== '' ? Number(filterStatus.value) : undefined,
     pageIndex: pageIndex.value,
     pageSize: pageSize.value
   })
   if (res.success) {
     const paged = res.data as any
-    results.value = paged?.data ?? []
+    results.value = (paged?.data ?? []).filter((r: any) => r.status === 2 || r.status === 3)
     total.value = paged?.total ?? 0
   }
-}
-
-async function handleClaim(row: any) {
-  const res: any = await reviewApi.claim(row.id)
-  if (res.success) { ElMessage.success('已认领'); loadData() }
-  else ElMessage.error(res.msg)
-}
-
-function openFix(row: any) { fixForm.value = { id: row.id, memo: '' }; fixVisible.value = true }
-async function doFix() {
-  if (!fixForm.value.memo) { ElMessage.warning('请填写修复方案'); return }
-  const res: any = await reviewApi.handle({ id: fixForm.value.id, status: 2, memo: fixForm.value.memo })
-  if (res.success) { ElMessage.success('已标记修复'); fixVisible.value = false; loadData() }
-  else ElMessage.error(res.msg)
-}
-
-function openIgnore(row: any) { ignoreForm.value = { id: row.id, memo: '' }; ignoreVisible.value = true }
-async function doIgnore() {
-  if (!ignoreForm.value.memo) { ElMessage.warning('请填写忽略理由'); return }
-  const res: any = await reviewApi.handle({ id: ignoreForm.value.id, status: 3, memo: ignoreForm.value.memo })
-  if (res.success) { ElMessage.success('已标记忽略'); ignoreVisible.value = false; loadData() }
-  else ElMessage.error(res.msg)
 }
 
 function openDetail(row: any) {

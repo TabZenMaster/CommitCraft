@@ -48,7 +48,7 @@ public class ReviewController : ControllerBase
     public async Task<Result> ClaimIssue([FromBody] IdDto dto)
     {
         var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var name = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
+        var name = User.FindFirst("realName")?.Value ?? User.FindFirst(ClaimTypes.Name)?.Value ?? "";
         if (!int.TryParse(idStr, out var id)) return Result.Fail("无效 Token");
         return await _service.ClaimIssueAsync(dto.Id, id, name);
     }
@@ -59,7 +59,7 @@ public class ReviewController : ControllerBase
     public async Task<Result> HandleIssue([FromBody] HandleDto dto)
     {
         var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var name = User.FindFirst(ClaimTypes.Name)?.Value ?? "";
+        var name = User.FindFirst("realName")?.Value ?? User.FindFirst(ClaimTypes.Name)?.Value ?? "";
         if (!int.TryParse(idStr, out var id)) return Result.Fail("无效 Token");
         return await _service.HandleIssueAsync(dto.Id, id, name, dto.Status, dto.Memo);
     }
@@ -74,6 +74,26 @@ public class ReviewController : ControllerBase
     [HttpGet("statistics")]
     public async Task<Result<object>> GetStatistics([FromQuery] int repositoryId = 0) =>
         await _service.GetIssueStatisticsAsync(repositoryId);
+
+    /// <summary>仪表盘：7天趋势</summary>
+    [HttpGet("trend")]
+    public async Task<Result<object>> GetTrend([FromQuery] int repositoryId = 0) =>
+        await _service.GetTrendAsync(repositoryId);
+
+    /// <summary>仪表盘：仓库排名</summary>
+    [HttpGet("repo-ranking")]
+    public async Task<Result<object>> GetRepoRanking() =>
+        await _service.GetRepoRankingAsync();
+
+    /// <summary>仪表盘：最近任务</summary>
+    [HttpGet("recent-tasks")]
+    public async Task<Result<object>> GetRecentTasks([FromQuery] int limit = 10) =>
+        await _service.GetRecentTasksAsync(limit);
+
+    /// <summary>仪表盘：处理效率</summary>
+    [HttpGet("handling-stats")]
+    public async Task<Result<object>> GetHandlingStats() =>
+        await _service.GetHandlingStatsAsync();
 }
 
 public class TriggerReviewDto

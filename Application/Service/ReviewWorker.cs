@@ -227,7 +227,6 @@ JSON数组中每个元素代表一个发现的问题，格式如下：
             Severity = i.severity ?? "minor",
             Description = i.description ?? "",
             Suggestion = i.suggestion ?? "",
-            HandlerId = null,
             Status = 0,
             CreateTime = DateTime.Now,
             IsDeleted = false

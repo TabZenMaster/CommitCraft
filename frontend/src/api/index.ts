@@ -52,6 +52,10 @@ export const reviewApi = {
   handle: (data: { id: number; status: number; memo?: string }) => request.post('/Review/handle', data),
   retry: (id: number) => request.post(`/Review/retry/${id}`),
   statistics: (repositoryId?: number) => request.get('/Review/statistics', { params: repositoryId ? { repositoryId } : {} }),
+  trend: (repositoryId?: number) => request.get('/Review/trend', { params: repositoryId ? { repositoryId } : {} }),
+  repoRanking: () => request.get('/Review/repo-ranking'),
+  recentTasks: (limit = 10) => request.get('/Review/recent-tasks', { params: { limit } }),
+  handlingStats: () => request.get('/Review/handling-stats'),
 }
 
 export const sysUserApi = {

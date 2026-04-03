@@ -120,10 +120,12 @@ public class ReviewResult : BaseEntity
     public string? DiffContent { get; set; } = "";
     /// <summary>0=待处理 1=已认领 2=已修复 3=已忽略</summary>
     public int Status { get; set; } = 0;
-    /// <summary>处理人 ID</summary>
-    public int? HandlerId { get; set; }
-    /// <summary>处理人</summary>
-    public string? HandlerName { get; set; } = "";
+    /// <summary>处理人用户ID</summary>
+    [SugarColumn(IsNullable = true)]
+    public int? HandlerUserId { get; set; }
+    /// <summary>处理人姓名（不映射DB，通过JOIN计算）</summary>
+    [SugarColumn(IsIgnore = true)]
+    public string? HandlerName { get; set; }
     /// <summary>处理时间</summary>
     [SugarColumn(IsNullable = true)]
     public DateTime? HandledAt { get; set; }
@@ -145,7 +147,8 @@ public class HandlerLog : BaseEntity
 {
     public int ReviewResultId { get; set; }
     public int OperatorId { get; set; }
-    public string OperatorName { get; set; } = "";
+    [SugarColumn(IsNullable = true)]
+    public int? OperatorUserId { get; set; }
     /// <summary>操作类型: claim/fix/ignore</summary>
     public string Action { get; set; } = "";
     /// <summary>原状态</summary>

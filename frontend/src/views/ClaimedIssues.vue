@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="page-title">🗂 问题处理台</div>
+      <div class="page-title">⏳ 待处理问题</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <el-select v-model="filterRepo" clearable placeholder="仓库" style="width:140px" @change="onFilterChange">
           <el-option label="全部仓库" value="" />
@@ -36,6 +36,7 @@
       </el-table-column>
       <el-table-column prop="description" label="问题描述" min-width="200" show-overflow-tooltip />
       <el-table-column prop="suggestion" label="修复建议" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="handlerName" label="认领人" width="100" />
       <el-table-column label="代码" width="90">
         <template #default="{ row }">
           <el-button v-if="row.diffContent" size="small" @click="openCode(row.diffContent)">查看代码</el-button>
@@ -44,17 +45,8 @@
       </el-table-column>
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
-          <template v-if="row.status === 0">
-            <el-button size="small" type="primary" @click="handleClaim(row)">认领</el-button>
-            <el-button size="small" type="danger" plain @click="openIgnore(row)">忽略</el-button>
-          </template>
-          <template v-else-if="row.status === 1">
-            <el-button size="small" type="success" @click="openFix(row)">标记修复</el-button>
-            <el-button size="small" type="info" plain @click="openIgnore(row)">忽略</el-button>
-          </template>
-          <template v-else>
-            <el-button size="small" type="info" plain @click="openDetail(row)">详情</el-button>
-          </template>
+          <el-button size="small" type="success" @click="openFix(row)">标记修复</el-button>
+          <el-button size="small" type="info" plain @click="openIgnore(row)">忽略</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -95,18 +87,6 @@
       </template>
     </el-dialog>
 
-    <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="处理详情" width="480px">
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="处理人">{{ detailData.handlerName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="处理时间">{{ detailData.handledAt || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="处理备注">{{ detailData.handlerMemo || '-' }}</el-descriptions-item>
-      </el-descriptions>
-      <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 全屏代码查看器 -->
     <Teleport to="body">
       <div v-if="overlayVisible" class="cv-overlay" @click.self="closeOverlay">
@@ -142,8 +122,6 @@ const fixVisible = ref(false)
 const fixForm = ref({ id: 0, memo: '' })
 const ignoreVisible = ref(false)
 const ignoreForm = ref({ id: 0, memo: '' })
-const detailVisible = ref(false)
-const detailData = ref<any>({})
 
 const overlayVisible = ref(false)
 const diffRef = ref<HTMLElement>()
@@ -228,7 +206,7 @@ async function loadData() {
   const res: any = await reviewApi.results({
     repositoryId: filterRepo.value || undefined,
     severity: filterSev.value || undefined,
-    status: 0,
+    status: 1,
     pageIndex: pageIndex.value,
     pageSize: pageSize.value
   })
@@ -237,12 +215,6 @@ async function loadData() {
     results.value = paged?.data ?? []
     total.value = paged?.total ?? 0
   }
-}
-
-async function handleClaim(row: any) {
-  const res: any = await reviewApi.claim(row.id)
-  if (res.success) { ElMessage.success('已认领'); loadData() }
-  else ElMessage.error(res.msg)
 }
 
 function openFix(row: any) { fixForm.value = { id: row.id, memo: '' }; fixVisible.value = true }
@@ -259,11 +231,6 @@ async function doIgnore() {
   const res: any = await reviewApi.handle({ id: ignoreForm.value.id, status: 3, memo: ignoreForm.value.memo })
   if (res.success) { ElMessage.success('已标记忽略'); ignoreVisible.value = false; loadData() }
   else ElMessage.error(res.msg)
-}
-
-function openDetail(row: any) {
-  detailData.value = row
-  detailVisible.value = true
 }
 </script>
 

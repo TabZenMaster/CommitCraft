@@ -12,7 +12,7 @@
       <el-table-column prop="role" label="角色" width="120">
         <template #default="{ row }">
           <el-tag :type="row.role === 'admin' ? 'danger' : row.role === 'reviewer' ? 'warning' : 'info'" size="small">
-            {{ row.role }}
+            {{ roleName(row.role) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -24,7 +24,8 @@
       <el-table-column label="操作" width="160">
         <template #default="{ row }">
           <el-button size="small" @click="openDialog(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button v-if="row.username !== 'admin'" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <span v-else style="color:#999;font-size:12px">-</span>
         </template>
       </el-table-column>
     </el-table>
@@ -103,6 +104,10 @@ async function handleDelete(row: any) {
   const res: any = await sysUserApi.delete(row.id)
   if (res.success) { ElMessage.success('删除成功'); loadData() }
   else ElMessage.error(res.msg)
+}
+
+function roleName(role: string) {
+  return { admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || role
 }
 </script>
 

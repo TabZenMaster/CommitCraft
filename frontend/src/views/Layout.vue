@@ -25,6 +25,12 @@
         <el-menu-item index="/review/issues">
           <span class="nav-icon">🗂</span><span>问题处理台</span>
         </el-menu-item>
+        <el-menu-item index="/review/claimed">
+          <span class="nav-icon">⏳</span><span>待处理问题</span>
+        </el-menu-item>
+        <el-menu-item index="/review/processed">
+          <span class="nav-icon">✅</span><span>已处理问题</span>
+        </el-menu-item>
         <el-menu-item v-if="isAdmin" index="/system/user">
           <span class="nav-icon">👥</span><span>用户管理</span>
         </el-menu-item>
@@ -68,7 +74,7 @@ const userInitials = computed(() => (user.realName || user.username || 'U').slic
 const pageTitles: Record<string, string> = {
   '/dashboard': '数据概览', '/settings/model': '模型配置',
   '/settings/repo': '仓库管理', '/settings/schedule': '定时计划', '/review': '审核任务',
-  '/review/issues': '问题处理台', '/system/user': '用户管理',
+  '/review/issues': '问题处理台', '/review/claimed': '待处理问题', '/review/processed': '已处理问题', '/system/user': '用户管理',
 }
 const pageTitle = computed(() => pageTitles[route.path] || '控制台')
 
