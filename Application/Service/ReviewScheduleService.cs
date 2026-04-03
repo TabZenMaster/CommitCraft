@@ -145,9 +145,9 @@ public class ReviewScheduleService : IReviewScheduleService
                     var msg = c.TryGetProperty("commit", out var commitEl) && commitEl.TryGetProperty("message", out var msgEl)
                         ? msgEl.GetString() ?? ""
                         : "";
-                    var committerLogin = c.TryGetProperty("committer", out var commEl) && commEl.TryGetProperty("login", out var loginEl)
-                        ? loginEl.GetString() ?? ""
-                        : "";
+                    var authorName = "";
+                    if (c.TryGetProperty("commit", out var co) && co.TryGetProperty("author", out var ao) && ao.TryGetProperty("name", out var no))
+                        authorName = no.GetString() ?? "";
                     var committedAt = c.TryGetProperty("commit", out var caEl) && caEl.TryGetProperty("created_at", out var caDateEl)
                         ? caDateEl.GetDateTime()
                         : DateTime.UtcNow;
@@ -156,7 +156,7 @@ public class ReviewScheduleService : IReviewScheduleService
                     {
                         Sha = sha!,
                         Message = msg,
-                        Committer = committerLogin,
+                        Committer = authorName,
                         CommittedAt = committedAt
                     });
                 }
@@ -172,13 +172,13 @@ public class ReviewScheduleService : IReviewScheduleService
             {
                 var cj = await commitResp.Content.ReadFromJsonAsync<JsonElement>();
                 var msg = cj.TryGetProperty("commit", out var c1) && c1.TryGetProperty("message", out var m1) ? m1.GetString() ?? "" : "";
-                var committer = cj.TryGetProperty("committer", out var c2) && c2.TryGetProperty("login", out var m2) ? m2.GetString() ?? "" : "";
+                var authorName = cj.TryGetProperty("commit", out var ca2) && ca2.TryGetProperty("author", out var aa2) && aa2.TryGetProperty("name", out var na2) ? na2.GetString() ?? "" : "";
                 var committedAt = cj.TryGetProperty("commit", out var c3) && c3.TryGetProperty("created_at", out var m3) ? m3.GetDateTime() : DateTime.UtcNow;
                 commits.Add(new CommitInfo
                 {
                     Sha = latestSha!,
                     Message = msg,
-                    Committer = committer,
+                    Committer = authorName,
                     CommittedAt = committedAt
                 });
             }

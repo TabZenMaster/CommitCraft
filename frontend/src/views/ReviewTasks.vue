@@ -35,9 +35,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="resultCount" label="问题数" width="80" />
-      <el-table-column prop="errorMsg" label="失败原因" width="180" show-overflow-tooltip>
+      <el-table-column prop="errorMsg" label="失败原因" width="180">
         <template #default="{ row }">
-          <span v-if="row.status === 3 && row.errorMsg" style="color:#f56c6c;font-size:12px">{{ row.errorMsg }}</span>
+          <span v-if="row.status === 3 && row.errorMsg"
+            class="copy-error"
+            :title="'点击复制：' + row.errorMsg"
+            @click="copyError(row.errorMsg)">{{ row.errorMsg }}</span>
           <span v-else>-</span>
         </template>
       </el-table-column>
@@ -89,8 +92,16 @@ async function retry(row: any) {
     ElMessage.error(res.msg || '重试失败')
   }
 }
+
+function copyError(msg: string) {
+  navigator.clipboard.writeText(msg).then(() => {
+    ElMessage.success('已复制失败原因')
+  })
+}
 </script>
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.copy-error { color: #f56c6c; font-size: 12px; cursor: pointer; text-decoration: underline dotted; }
+.copy-error:hover { color: #f78989; }
 </style>

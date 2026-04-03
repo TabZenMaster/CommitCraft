@@ -12,6 +12,7 @@
     "@element-plus/icons-vue": "^2.3.2",
     "@microsoft/signalr": "^10.0.0",
     "axios": "^1.14.0",
+    "diff2html": "^3.4.56",
     "element-plus": "^2.13.6",
     "highlight.js": "^11.11.1",
     "vue": "^3.5.30",

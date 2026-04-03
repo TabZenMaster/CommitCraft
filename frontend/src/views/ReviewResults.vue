@@ -30,7 +30,7 @@
       <el-table-column prop="suggestion" label="修复建议" />
       <el-table-column label="代码" width="90">
         <template #default="{ row }">
-          <el-button v-if="row.diffContent" size="small" @click="showCode(row)">查看代码</el-button>
+          <el-button v-if="row.diffContent" size="small" @click="openCode(row.diffContent)">查看代码</el-button>
           <span v-else style="color:#999;font-size:12px">-</span>
         </template>
       </el-table-column>
@@ -41,7 +41,7 @@
       </el-table-column>
     </el-table>
 
-    <el-empty v-else-if="!loading" description="暂无审核结果，问题可能已被修复或 AI 未发现问题" />
+    <el-empty v-else-if="!loading" description="暂无审核结果" />
 
     <el-pagination
       v-if="total > 0"
@@ -54,70 +54,97 @@
       @current-change="loadData"
       style="margin-top:16px;justify-content:center" />
 
-    <!-- 代码详情弹窗 -->
-    <el-dialog v-model="codeDialogVisible" :title="currentCode?.filePath" width="800px" destroy-on-close>
-      <pre><code v-html="highlightedCode"></code></pre>
-    </el-dialog>
+    <!-- 全屏代码查看器 -->
+    <Teleport to="body">
+      <div v-if="overlayVisible" class="cv-overlay" @click.self="closeOverlay">
+        <div class="cv-panel">
+          <div class="cv-topbar">
+            <span v-if="diffStats" class="cv-add">+{{ diffStats.additions }}</span>
+            <span v-if="diffStats" class="cv-del">-{{ diffStats.deletions }}</span>
+            <button class="cv-close" @click="closeOverlay">✕</button>
+          </div>
+          <div ref="diffRef" class="cv-diff"></div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, nextTick, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { reviewApi } from '@/api'
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github-dark.min.css'
+import { html } from 'diff2html'
+import 'diff2html/bundles/css/diff2html.min.css'
 
 const route = useRoute()
 const router = useRouter()
 const taskId = Number(route.params.id)
+
 const taskInfo = ref<any>(null)
 const results = ref<any[]>([])
-const codeDialogVisible = ref(false)
-const currentCode = ref<any>(null)
 const loading = ref(false)
 const pageIndex = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
 
-const highlightedCode = computed(() => {
-  if (!currentCode.value?.diffContent) return ''
-  const code = currentCode.value.diffContent
-  const ext = currentCode.value.filePath?.split('.').pop() ?? ''
-  const langMap: Record<string, string> = {
-    cs: 'csharp', js: 'javascript', ts: 'typescript', vue: 'xml',
-    py: 'python', java: 'java', go: 'go', rs: 'rust', sql: 'sql',
-    json: 'json', xml: 'xml', html: 'xml', css: 'css', sh: 'bash',
-    yml: 'yaml', yaml: 'yaml', md: 'markdown', txt: 'plaintext'
-  }
-  const lang = langMap[ext] || 'plaintext'
-  try { return hljs.highlight(code, { language: lang }).value }
-  catch { return hljs.highlightAuto(code).value }
+const overlayVisible = ref(false)
+const diffRef = ref<HTMLElement>()
+const diffStats = ref<{ additions: number; deletions: number } | null>(null)
+
+watch(overlayVisible, (v) => {
+  const method = v ? 'add' : 'remove'
+  document.documentElement.classList[method]('cv-lock')
 })
 
-function showCode(row: any) {
-  currentCode.value = row
-  codeDialogVisible.value = true
+function openCode(diffContent: string) {
+  overlayVisible.value = true
+  nextTick(() => renderDiff(diffContent))
+}
+
+function closeOverlay() {
+  overlayVisible.value = false
+}
+
+function renderDiff(content: string) {
+  if (!diffRef.value) return
+  if (!content.trim()) {
+    diffStats.value = null
+    diffRef.value.innerHTML = '<p style="color:#999;padding:40px">无差异内容</p>'
+    return
+  }
+  const lines = content.split('\n')
+  let a = 0, d = 0
+  for (const l of lines) {
+    if (l.startsWith('+') && !l.startsWith('+++')) a++
+    else if (l.startsWith('-') && !l.startsWith('---')) d++
+  }
+  diffStats.value = { additions: a, deletions: d }
+  diffRef.value.innerHTML = html(content, {
+    drawFileList: false,
+    fileContentToggle: false,
+    highlight: true,
+    synchronizedScroll: false,
+    matching: 'lines',
+    outputFormat: 'side-by-side',
+    colorScheme: 'dark'
+  }) as string
 }
 
 const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: '', suggestion: 'info' }[s] || '')
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
-const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
+const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'warning', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
 const statusTag = (s: number) => ['', 'warning', 'success', 'info'][s] || 'info'
 const statusName = (s: number) => ['待处理', '已认领', '已修复', '已忽略'][s] || '-'
 
 async function loadData() {
   loading.value = true
-  const res: any = await reviewApi.results({
-    reviewCommitId: taskId,
-    pageIndex: pageIndex.value,
-    pageSize: pageSize.value
-  })
+  const res: any = await reviewApi.results({ reviewCommitId: taskId, pageIndex: pageIndex.value, pageSize: pageSize.value })
   loading.value = false
   if (res.success) {
     const paged = res.data as any
-    const order = { critical: 0, major: 1, minor: 2, suggestion: 3 }
+    const order: Record<string, number> = { critical: 0, major: 1, minor: 2, suggestion: 3 }
     results.value = (paged?.data ?? []).sort((a: any, b: any) => (order[a.severity] ?? 99) - (order[b.severity] ?? 99))
     total.value = paged?.total ?? 0
   }
@@ -130,6 +157,64 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
+<style>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+
+/* 全屏覆盖层 */
+.cv-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  overflow: hidden;
+}
+
+/* 面板 */
+.cv-panel {
+  position: absolute;
+  inset: 0;
+  background: #0d1117;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶栏 */
+.cv-topbar {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: #161b22;
+}
+.cv-add { color: #3fb950; font-size: 13px; font-weight: 700; }
+.cv-del { color: #f85149; font-size: 13px; font-weight: 700; }
+.cv-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+.cv-close:hover { color: #e6edf3; }
+
+/* diff 区域 */
+.cv-diff {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+.cv-diff .d2h-file-side-diff { overflow-x: auto; overflow-y: auto !important; }
+.cv-diff .d2h-code-side-linenumber { position: sticky !important; left: 0; }
+
+/* 弹窗打开时锁定背景滚动 */
+:global(html.cv-lock),
+:global(html.cv-lock body) {
+  overflow: hidden !important;
+  height: 100% !important;
+}
 </style>

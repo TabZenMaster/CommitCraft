@@ -116,6 +116,7 @@ public class ReviewResult : BaseEntity
     /// <summary>修复建议</summary>
     public string Suggestion { get; set; } = "";
     /// <summary>相关代码片段（Diff 内容）</summary>
+    [SugarColumn(ColumnDataType = "LONGTEXT")]
     public string? DiffContent { get; set; } = "";
     /// <summary>0=待处理 1=已认领 2=已修复 3=已忽略</summary>
     public int Status { get; set; } = 0;

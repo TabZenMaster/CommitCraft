@@ -1,5 +1,7 @@
 using CodeReview.Application.IService;
 using CodeReview.Domain.Entities;
+
+
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -151,18 +153,25 @@ public class ReviewService : IReviewService
             model.ApiKey = CryptoHelper.Decrypt(model.ApiKey); // 解密
 
             // 拉取 Commit Diff
-            var diff = await FetchCommitDiff(repo, task.CommitSha);
-            if (diff == null) { await MarkFailed(reviewCommitId, "无法获取 Commit Diff，请检查仓库地址和 Token"); return; }
-            if (diff.Count == 0) { await MarkSuccess(reviewCommitId, "无文件变更"); return; }
+            var (files, parentSha) = await FetchCommitDiff(repo, task.CommitSha);
+            if (files == null || files.Count == 0) { await MarkSuccess(reviewCommitId, "无文件变更"); return; }
+
+            // 获取每个文件的新旧内容（用于 split diff 展示）
+            foreach (var f in files)
+            {
+                f.newContent = await FetchFileContent(repo, f.filename, task.CommitSha);
+                if (!string.IsNullOrEmpty(parentSha))
+                    f.oldContent = await FetchFileContent(repo, f.filename, parentSha);
+            }
 
             // 调用 AI 审核
-            File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] 开始调用 AI，diff 文件数={diff.Count}\n");
-            var (issues, aiError) = await CallAiReview(model, task, diff);
+            File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] 开始调用 AI，diff 文件数={files.Count}\n");
+            var (issues, aiError) = await CallAiReview(model, task, files);
             File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI 调用返回 issues={(issues?.Count ?? -1)} error={aiError}\n");
             if (issues == null) { await MarkFailed(reviewCommitId, aiError ?? "AI 调用失败"); return; }
 
             // 解析结果入库
-            await SaveReviewResults(reviewCommitId, task.RepositoryId, task.CommitSha, issues);
+            await SaveReviewResults(reviewCommitId, task.RepositoryId, task.CommitSha, issues, files);
 
             // 更新仓库最后审核时间
             await _db.Updateable<Repository>()
@@ -236,7 +245,7 @@ public class ReviewService : IReviewService
         _ => "https://gitee.com/api/v5"
     };
 
-    private async Task<List<CommitFile>> FetchCommitDiff(Repository repo, string sha)
+    private async Task<(List<CommitFile> Files, string? ParentSha)> FetchCommitDiff(Repository repo, string sha)
     {
         var client = _httpClientFactory.CreateClient();
 
@@ -268,7 +277,7 @@ public class ReviewService : IReviewService
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {commitUrl}\n");
         var commitResp = await client.GetAsync(commitUrl);
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: commitResp={(int)commitResp.StatusCode}\n");
-        if (!commitResp.IsSuccessStatusCode) return new List<CommitFile>();
+        if (!commitResp.IsSuccessStatusCode) return (new List<CommitFile>(), (string?)null);
 
         var commitJson = await commitResp.Content.ReadAsStringAsync();
         var commitInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(commitJson);
@@ -288,7 +297,7 @@ public class ReviewService : IReviewService
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {diffUrl}\n");
         var diffResp = await client.GetAsync(diffUrl);
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: diffResp={(int)diffResp.StatusCode}\n");
-        if (!diffResp.IsSuccessStatusCode) return new List<CommitFile>();
+        if (!diffResp.IsSuccessStatusCode) return (new List<CommitFile>(), (string?)null);
 
         var diffJson = await diffResp.Content.ReadAsStringAsync();
         var diffInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(diffJson) ?? new();
@@ -296,19 +305,67 @@ public class ReviewService : IReviewService
         File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: files count={files.Count}\n");
 
         // GitHub: diff 在 files[].patch；Gitee: diff 在 files[].diff，统一处理
-        return files.Select(f =>
+        var fileList = new List<CommitFile>();
+        foreach (var f in files)
         {
             var diffVal = f["patch"]?.ToString() ?? f["diff"]?.ToString() ?? "";
             var filename = f["filename"]?.ToString() ?? f["new_path"]?.ToString() ?? "";
-            return new CommitFile
+            fileList.Add(new CommitFile
             {
                 filename = filename,
                 status = f["status"]?.ToString() ?? "",
                 additions = f["additions"]?.ToString(),
                 deletions = f["deletions"]?.ToString(),
                 diff = diffVal
-            };
-        }).ToList();
+            });
+        }
+        return (fileList, parentSha);
+    }
+
+    /// <summary>
+    /// 获取指定 commit 下某文件的完整内容（用于"查看代码"）
+    /// </summary>
+    private async Task<string> FetchFileContent(Repository repo, string filename, string sha)
+    {
+        var client = _httpClientFactory.CreateClient();
+        var (owner, repoSlug, platform) = ParseRepoUrl(repo.RepoUrl);
+        var token = repo.GiteeToken;
+        var apiBase = GetPlatformApiBase(platform);
+
+        string url;
+        if (platform == "github")
+        {
+            url = $"{apiBase}/repos/{owner}/{repoSlug}/contents/{Uri.EscapeDataString(filename)}?ref={sha}";
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        }
+        else
+        {
+            var t = string.IsNullOrEmpty(token) ? "" : $"&access_token={token}";
+            url = $"{apiBase}/repos/{owner}/{repoSlug}/contents/{Uri.EscapeDataString(filename)}?ref={sha}{t}";
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("Authorization", $"token {token}");
+        }
+
+        try
+        {
+            var resp = await client.GetAsync(url);
+            if (!resp.IsSuccessStatusCode) return "";
+            var json = JsonConvert.DeserializeObject<Dictionary<string, object>>(await resp.Content.ReadAsStringAsync());
+            if (json == null) return "";
+            var enc = json["encoding"]?.ToString();
+            var contentStr = json["content"]?.ToString()?.Replace("\n", "") ?? "";
+            if (enc == "base64" && !string.IsNullOrEmpty(contentStr))
+            {
+                var bytes = Convert.FromBase64String(contentStr);
+                return Encoding.UTF8.GetString(bytes);
+            }
+            return contentStr;
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     // ========== AI 审核 ==========
@@ -331,11 +388,16 @@ public class ReviewService : IReviewService
 
 【输出格式 - 必须严格遵循】
 每行一个发现，8个字段用|分隔：
-文件名|起始行|结束行|问题类型|严重程度|问题描述|修复建议|相关代码（最多8行，从diff中截取）
+文件名|起始行|结束行|问题类型|严重程度|问题描述|修复建议|相关代码（必须包含10-20行，从diff中截取的上下文）
 
 示例：
-src/Controller/User.cs|15|20|security|critical|存在SQL注入风险|使用参数化查询|var sql = SELECT * FROM users WHERE id= + id
-src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存
+src/Controller/User.cs|15|20|security|critical|存在SQL注入风险|使用参数化查询|var sql = ""SELECT * FROM users WHERE id="" + id;
+    var cmd = new SqlCommand(sql, conn);
+    cmd.Parameters.AddWithValue(""@id"", id);
+src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存|var cache = new Dictionary<string, object>();
+if (cache.ContainsKey(key)) return cache[key];
+var result = Compute(key);
+cache[key] = result;
 
 无问题时只输出：[]";
 
@@ -431,7 +493,7 @@ src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存
                 {
                     var trimmed = line.Trim();
                     if (trimmed == "[]" || string.IsNullOrWhiteSpace(trimmed)) continue;
-                    var parts = trimmed.Split('|');
+                    var parts = trimmed.Split('|', 8); // 限制8段，防止代码里的|被错误切割
                     if (parts.Length < 7) continue;
                     issues.Add(new ReviewIssue
                     {
@@ -442,6 +504,7 @@ src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存
                         severity = parts[4].Trim(),
                         description = parts[5].Trim(),
                         suggestion = parts[6].Trim(),
+                        // 用 Split("|", 8) 限制最多切8段，防止代码里的 | 被错误切割
                         diff_content = parts.Length > 7 ? parts[7].Trim() : null
                     });
                 }
@@ -473,29 +536,111 @@ src/utils/helper.ts|30|30|performance|major|重复计算|添加缓存
         return (null, lastEx?.Message);
     }
 
-    private async Task SaveReviewResults(int reviewCommitId, int repositoryId, string commitSha, List<ReviewIssue> issues)
+    private async Task SaveReviewResults(int reviewCommitId, int repositoryId, string commitSha, List<ReviewIssue> issues, List<CommitFile> files)
     {
-        var entities = issues.Select(i => new ReviewResult
+        var fileMap = files.ToDictionary(f => f.filename, f => f, StringComparer.OrdinalIgnoreCase);
+        var entities = issues.Select(i =>
         {
-            ReviewCommitId = reviewCommitId,
-            RepositoryId = repositoryId,
-            CommitSha = commitSha,
-            FilePath = i.file_path ?? "",
-            LineStart = i.line_start,
-            LineEnd = i.line_end,
-            IssueType = i.issue_type ?? "other",
-            Severity = i.severity ?? "minor",
-            Description = i.description ?? "",
-            Suggestion = i.suggestion ?? "",
-            DiffContent = i.diff_content ?? "",
-            HandlerId = 0,
-            Status = 0,
-            CreateTime = DateTime.Now,
-            IsDeleted = false
+            var f = fileMap.TryGetValue(i.file_path ?? "", out var cf) ? cf : null;
+            var diffContent = f != null ? ComputeUnifiedDiff(f) : "";
+            return new ReviewResult
+            {
+                ReviewCommitId = reviewCommitId,
+                RepositoryId = repositoryId,
+                CommitSha = commitSha,
+                FilePath = i.file_path ?? "",
+                LineStart = i.line_start,
+                LineEnd = i.line_end,
+                IssueType = i.issue_type ?? "other",
+                Severity = i.severity ?? "minor",
+                Description = i.description ?? "",
+                Suggestion = i.suggestion ?? "",
+                DiffContent = diffContent,
+                HandlerId = 0,
+                Status = 0,
+                CreateTime = DateTime.Now,
+                IsDeleted = false
+            };
         }).ToList();
 
         if (entities.Any())
             await _db.Insertable(entities).ExecuteCommandAsync();
+    }
+
+    /// <summary>
+    /// 返回标准 unified diff 格式字符串，供 diff2html 渲染
+    /// </summary>
+    /// <summary>
+    /// 返回标准 unified diff 字符串（带完整 header），供 diff2html 渲染
+    /// </summary>
+    private string ComputeUnifiedDiff(CommitFile f)
+    {
+        var raw = f.diff ?? "";
+        var oldText = f.oldContent ?? "";
+        var newText = f.newContent ?? "";
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"diff --git a/{f.filename} b/{f.filename}");
+        if (string.IsNullOrEmpty(oldText))
+        {
+            sb.AppendLine("new file mode");
+            sb.AppendLine("--- /dev/null");
+            sb.AppendLine($"+++ b/{f.filename}");
+        }
+        else
+        {
+            sb.AppendLine($"--- a/{f.filename}");
+            sb.AppendLine($"+++ b/{f.filename}");
+        }
+
+        // API 返回了有效 hunk，直接拼上（GitHub 完整，Gitee 只有 hunk 体）
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            sb.Append(raw.TrimStart());
+        }
+        // API hunk 为空（Gitee 新增文件），用 LCS 算法从内容合成
+        else if (!string.IsNullOrEmpty(newText))
+        {
+            var oldLines = oldText.Split('\n');
+            var newLines = newText.Split('\n');
+            var lcs = ComputeLcs(oldLines, newLines);
+            int o = 0, n = 0;
+            foreach (var (_, i, j) in lcs)
+            {
+                while (o < i) { sb.Append('-'); sb.AppendLine(oldLines[o++]); }
+                while (n < j) { sb.Append('+'); sb.AppendLine(newLines[n++]); }
+                sb.Append(' '); sb.AppendLine(oldLines[i]);
+                o++; n++;
+            }
+            while (o < oldLines.Length) { sb.Append('-'); sb.AppendLine(oldLines[o++]); }
+            while (n < newLines.Length) { sb.Append('+'); sb.AppendLine(newLines[n++]); }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>Returns tuples of (matched:bool, oldIndex, newIndex)</summary>
+    private IEnumerable<(bool Matched, int OldIdx, int NewIdx)> ComputeLcs(string[] a, string[] b)
+    {
+        int m = a.Length, n = b.Length;
+        var dp = new int[m + 1, n + 1];
+        for (int i = 1; i <= m; i++)
+            for (int j = 1; j <= n; j++)
+                dp[i, j] = a[i - 1] == b[j - 1] ? dp[i - 1, j - 1] + 1 : Math.Max(dp[i - 1, j], dp[i, j - 1]);
+
+        var result = new List<(bool, int, int)>();
+        int x = m, y = n;
+        while (x > 0 || y > 0)
+        {
+            if (x > 0 && y > 0 && a[x - 1] == b[y - 1])
+            { result.Add((true, x - 1, y - 1)); x--; y--; }
+            else if (y > 0 && (x == 0 || dp[x, y - 1] >= dp[x - 1, y]))
+            { y--; }
+            else
+            { x--; }
+        }
+        result.Reverse();
+        return result;
     }
 
     // ========== 结果查询 ==========
@@ -656,6 +801,10 @@ public class CommitFile
     public string? additions { get; set; }
     public string? deletions { get; set; }
     public string diff { get; set; } = "";
+    /// <summary>父 commit 的文件内容</summary>
+    public string? oldContent { get; set; }
+    /// <summary>当前 commit 的文件内容</summary>
+    public string? newContent { get; set; }
 }
 
 // ========== AI 审核结果结构 ==========
