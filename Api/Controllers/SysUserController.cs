@@ -3,6 +3,7 @@ using CodeReview.Application.IService;
 using CodeReview.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CodeReview.Api.Controllers;
 
@@ -13,6 +14,7 @@ public class SysUserController : ControllerBase
 {
     public record ResetPasswordDto(int id, string newPassword);
     public record ChangePasswordDto(string oldPwd, string newPwd);
+    public record UpdateUserDto(int id, string? realName, string? gitName);
 
     private readonly ISysUserService _service;
 
@@ -38,10 +40,17 @@ public class SysUserController : ControllerBase
     public async Task<Result> Add([FromBody] SysUser model) =>
         await _service.AddAsync(model) ? Result.Ok("添加成功") : Result.Fail("添加失败");
 
-    [Authorize(Roles = "admin")]
     [HttpPost("update")]
-    public async Task<Result> Update([FromBody] SysUser model) =>
-        await _service.UpdateAsync(model) ? Result.Ok("更新成功") : Result.Fail("更新失败");
+    public async Task<Result> Update([FromBody] UpdateUserDto dto)
+    {
+        var id = int.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? "0");
+        if (dto.id != id) return Result.Fail("只能修改自己的信息");
+        var user = await _service.GetByIdAsync(dto.id);
+        if (user == null) return Result.Fail("用户不存在");
+        user.RealName = dto.realName ?? user.RealName;
+        user.GitName = dto.gitName;
+        return await _service.UpdateAsync(user) ? Result.Ok("更新成功") : Result.Fail("更新失败");
+    }
 
     [Authorize(Roles = "admin")]
     [HttpDelete("{id}")]
@@ -59,12 +68,12 @@ public class SysUserController : ControllerBase
     }
 
     [HttpPost("change-password")]
-    public async Task<Result> ChangePassword([FromBody] ChangePasswordDto dto)
+    public async Task<Result<object>> ChangePassword([FromBody] ChangePasswordDto dto)
     {
-        var id = int.Parse(User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var id = int.Parse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value ?? "0");
         if (string.IsNullOrWhiteSpace(dto.newPwd) || dto.newPwd.Length < 6)
-            return Result.Fail("新密码长度不能少于6位");
+            return Result<object>.Fail("新密码长度不能少于6位");
         var ok = await _service.ChangePasswordAsync(id, dto.oldPwd, dto.newPwd);
-        return ok ? Result.Ok("密码修改成功") : Result.Fail("原密码错误");
+        return ok ? Result<object>.Ok(new { needRelogin = true }, "密码修改成功，请重新登录") : Result<object>.Fail("原密码错误");
     }
 }

@@ -150,8 +150,15 @@ async function doChangePwd() {
   if (!pwdForm.value.newPwd || pwdForm.value.newPwd.length < 6) { ElMessage.warning('新密码至少6位'); return }
   if (pwdForm.value.newPwd !== pwdForm.value.confirmPwd) { ElMessage.warning('两次新密码不一致'); return }
   const res: any = await sysUserApi.changePwd(pwdForm.value.oldPwd, pwdForm.value.newPwd)
-  if (res.success) { ElMessage.success('密码修改成功'); pwdVisible.value = false }
-  else ElMessage.error(res.msg)
+  if (res.success) {
+    pwdVisible.value = false
+    ElMessage.success('密码修改成功，请重新登录')
+    localStorage.removeItem('cr_token')
+    localStorage.removeItem('cr_user')
+    location.href = '/login'
+  } else {
+    ElMessage.error(res.msg)
+  }
 }
 
 async function saveProfile() {
