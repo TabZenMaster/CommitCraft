@@ -39,8 +39,9 @@ public class ReviewController : ControllerBase
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 50,
         [FromQuery] string? severity = null,
-        [FromQuery] int? status = null) =>
-        Result<object>.Ok(await _service.GetResultsPageAsync(reviewCommitId, repositoryId, pageIndex, pageSize, severity, status));
+        [FromQuery] int? status = null,
+        [FromQuery] string? issueType = null) =>
+        Result<object>.Ok(await _service.GetResultsPageAsync(reviewCommitId, repositoryId, pageIndex, pageSize, severity, status, issueType));
 
     /// <summary>认领问题</summary>
     [Authorize(Roles = "admin,reviewer,developer")]

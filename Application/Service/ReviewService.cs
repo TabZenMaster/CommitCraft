@@ -657,7 +657,7 @@ cache[key] = result;
             .ToListAsync();
     }
 
-    public async Task<PagedResult<ReviewResult>> GetResultsPageAsync(int reviewCommitId, int repositoryId, int pageIndex, int pageSize, string? severity, int? status)
+    public async Task<PagedResult<ReviewResult>> GetResultsPageAsync(int reviewCommitId, int repositoryId, int pageIndex, int pageSize, string? severity, int? status, string? issueType = null)
     {
         var query = _db.Queryable<ReviewResult>().Where(x => !x.IsDeleted);
         if (reviewCommitId > 0)
@@ -668,6 +668,8 @@ cache[key] = result;
             query = query.Where(x => x.Severity == severity);
         if (status.HasValue)
             query = query.Where(x => x.Status == status.Value);
+        if (!string.IsNullOrEmpty(issueType))
+            query = query.Where(x => x.IssueType == issueType);
 
         var total = await query.CountAsync();
         var data = await query

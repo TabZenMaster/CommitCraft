@@ -242,7 +242,8 @@ function renderTrend() {
       { name: '致命', data: trend.value.criticalCounts, type: 'line', smooth: 0.4, lineStyle: { color: '#f56c6c', width: 2.5 }, itemStyle: { color: '#f56c6c' }, symbol: 'circle', symbolSize: 4 },
       { name: '严重', data: trend.value.majorCounts, type: 'line', smooth: 0.4, lineStyle: { color: '#e6a23c', width: 2.5 }, itemStyle: { color: '#e6a23c' }, symbol: 'circle', symbolSize: 4 }
     ]
-  })
+  });
+  setTimeout(() => trendChartIns?.resize(), 50)
 }
 
 function renderStatus() {
@@ -259,7 +260,8 @@ function renderStatus() {
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', backgroundColor: 'rgba(255,255,255,0.96)', borderColor: '#e4e7ed', textStyle: { color: '#303133', fontSize: 12 }, extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08)' },
     legend: { orient: 'vertical', right: 8, top: 'center', textStyle: { fontSize: 11, color: '#606266' }, itemGap: 10 },
     series: [{ type: 'pie', radius: ['42%', '68%'], center: ['34%', '50%'], label: { show: false }, emphasis: { scale: true, scaleSize: 6, label: { show: true, fontSize: 12, fontWeight: 600 } }, data: data.map(d => ({ ...d, itemStyle: { color: d.color, borderRadius: 6, borderWidth: 2, borderColor: '#fff' } })) }]
-  })
+  });
+  setTimeout(() => statusChartIns?.resize(), 50)
 }
 
 function renderRanking() {
@@ -273,7 +275,8 @@ function renderRanking() {
     xAxis: { type: 'value', splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } }, axisLabel: { fontSize: 10, color: '#909399' }, axisLine: { show: false } },
     yAxis: { type: 'category', data: data.map(d => d.name).reverse(), axisLabel: { fontSize: 11, color: '#606266' }, axisLine: { lineStyle: { color: '#e4e7ed' } }, axisTick: { show: false } },
     series: [{ type: 'bar', data: data.map(d => d.value).reverse(), barWidth: 14, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#409eff' }, { offset: 1, color: '#53d1a6' }]), borderRadius: [0, 6, 6, 0] }, label: { show: true, position: 'right', fontSize: 11, color: '#909399', formatter: '{c}' } }]
-  })
+  });
+  setTimeout(() => rankingChartIns?.resize(), 50)
 }
 
 const typeNames: Record<string, string> = {
@@ -295,7 +298,8 @@ function renderType() {
   typeChartIns.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', backgroundColor: 'rgba(255,255,255,0.96)', borderColor: '#e4e7ed', textStyle: { color: '#303133', fontSize: 12 }, extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08)' },
     series: [{ type: 'pie', radius: ['38%', '62%'], center: ['50%', '50%'], label: { formatter: '{b}\n{d}%', fontSize: 11, color: '#606266' }, data: entries.map(([k, v]) => ({ name: typeNames[k] || k, value: v, itemStyle: { color: typeColors[k] || '#999', borderRadius: 6, borderWidth: 2, borderColor: '#fff' } })) }]
-  })
+  });
+  setTimeout(() => typeChartIns?.resize(), 50)
 }
 
 function barColor(h: number) {

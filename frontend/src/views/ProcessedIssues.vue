@@ -14,6 +14,16 @@
           <el-option label="警告" value="minor" />
           <el-option label="建议" value="suggestion" />
         </el-select>
+        <el-select v-model="filterType" clearable placeholder="问题类型" style="width:120px" @change="onFilterChange">
+          <el-option label="全部" value="" />
+          <el-option label="安全" value="security" />
+          <el-option label="正确性" value="correctness" />
+          <el-option label="性能" value="performance" />
+          <el-option label="可维护性" value="maintainability" />
+          <el-option label="最佳实践" value="best_practice" />
+          <el-option label="代码风格" value="code_style" />
+          <el-option label="其他" value="other" />
+        </el-select>
         <el-select v-model="filterStatus" clearable placeholder="处理结果" style="width:120px" @change="onFilterChange">
           <el-option label="全部" value="" />
           <el-option label="已修复" :value="2" />
@@ -109,6 +119,7 @@ const results = ref<any[]>([])
 const repos = ref<any[]>([])
 const filterRepo = ref('')
 const filterSev = ref('')
+const filterType = ref('')
 const filterStatus = ref('')
 const pageIndex = ref(1)
 const pageSize = ref(50)
@@ -202,6 +213,7 @@ async function loadData() {
   const res: any = await reviewApi.results({
     repositoryId: filterRepo.value || undefined,
     severity: filterSev.value || undefined,
+    issueType: filterType.value || undefined,
     status: filterStatus.value !== '' ? Number(filterStatus.value) : undefined,
     pageIndex: pageIndex.value,
     pageSize: pageSize.value

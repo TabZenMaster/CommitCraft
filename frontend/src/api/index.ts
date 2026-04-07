@@ -47,6 +47,7 @@ export const reviewApi = {
     pageSize?: number
     severity?: string
     status?: number
+    issueType?: string
   }) => request.get('/Review/results', { params }),
   claim: (id: number) => request.post('/Review/claim', { id }),
   handle: (data: { id: number; status: number; memo?: string }) => request.post('/Review/handle', data),
