@@ -8,8 +8,8 @@
     <div class="login-wrap">
       <div class="login-brand">
         <div class="brand-icon">⚡</div>
-        <h1 class="brand-name">CodeReview</h1>
-        <p class="brand-sub">智能代码审核平台</p>
+        <h1 class="brand-name">CommitCraft</h1>
+        <p class="brand-sub">AI Code Review Platform</p>
       </div>
       <el-card class="login-card" shadow="never">
         <el-form @submit.prevent="handleLogin" size="large">

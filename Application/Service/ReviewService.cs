@@ -711,6 +711,12 @@ cache[key] = result;
         if (result == null) return Result.Fail("问题不存在");
         if (result.Status != 0) return Result.Fail("只有待处理状态可以认领");
 
+        // 非管理员只能认领无人认领的问题
+        var user = await _db.Queryable<SysUser>().Where(x => x.Id == userId).FirstAsync();
+        var isAdmin = user?.Role == "admin";
+        if (!isAdmin && result.HandlerUserId != null && result.HandlerUserId != 0)
+            return Result.Fail("该问题已被认领");
+
         await AddLog(resultId, userId, "claim", result.Status, 1);
 
         result.Status = 1;
@@ -727,6 +733,12 @@ cache[key] = result;
         if (status != 2 && status != 3) return Result.Fail("状态必须是已修复(2)或已忽略(3)");
         if (result.Status != 1 && result.Status != 0)
             return Result.Fail("当前状态不允许此操作");
+
+        // 非管理员只能操作自己认领的问题
+        var user = await _db.Queryable<SysUser>().Where(x => x.Id == userId).FirstAsync();
+        var isAdmin = user?.Role == "admin";
+        if (!isAdmin && result.HandlerUserId != userId)
+            return Result.Fail("只能处理自己认领的问题");
 
         await AddLog(resultId, userId, status == 2 ? "fix" : "ignore",
             result.Status, status);

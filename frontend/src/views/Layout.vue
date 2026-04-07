@@ -4,22 +4,22 @@
     <el-aside width="220px">
       <div class="logo">
         <span class="logo-icon">⚡</span>
-        <span class="logo-text">CodeReview</span>
+        <span class="logo-text">CommitCraft</span>
       </div>
       <el-menu :default-active="$route.path" router class="nav-menu">
         <el-menu-item index="/dashboard">
           <span class="nav-icon">📊</span><span>数据概览</span>
         </el-menu-item>
-        <el-menu-item index="/settings/model">
+        <el-menu-item v-if="isAdmin" index="/settings/model">
           <span class="nav-icon">🤖</span><span>模型配置</span>
         </el-menu-item>
-        <el-menu-item index="/settings/repo">
+        <el-menu-item v-if="isAdmin" index="/settings/repo">
           <span class="nav-icon">📦</span><span>仓库管理</span>
         </el-menu-item>
-        <el-menu-item index="/settings/schedule">
+        <el-menu-item v-if="isReviewer" index="/settings/schedule">
           <span class="nav-icon">📅</span><span>定时计划</span>
         </el-menu-item>
-        <el-menu-item index="/review">
+        <el-menu-item v-if="isReviewer" index="/review">
           <span class="nav-icon">🔍</span><span>审核任务</span>
         </el-menu-item>
         <el-menu-item index="/review/issues">
@@ -39,7 +39,7 @@
         <div class="user-avatar">{{ userInitials }}</div>
         <div class="user-detail">
           <div class="user-name">{{ userName }}</div>
-          <div class="user-role">{{ isAdmin ? '管理员' : '用户' }}</div>
+          <div class="user-role">{{ roleName(user.role) }}</div>
         </div>
         <el-button link class="logout-btn" @click="logout" title="退出登录">↩</el-button>
       </div>
@@ -69,7 +69,12 @@ const route = useRoute()
 const user = JSON.parse(localStorage.getItem('cr_user') || '{}')
 const userName = computed(() => user.realName || user.username || '用户')
 const isAdmin = computed(() => user.role === 'admin')
+const isReviewer = computed(() => user.role === 'reviewer' || user.role === 'admin')
 const userInitials = computed(() => (user.realName || user.username || 'U').slice(0, 1).toUpperCase())
+
+function roleName(role: string) {
+  return { admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || '用户'
+}
 
 const pageTitles: Record<string, string> = {
   '/dashboard': '数据概览', '/settings/model': '模型配置',
