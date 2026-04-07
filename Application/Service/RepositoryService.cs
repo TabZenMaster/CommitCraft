@@ -176,7 +176,7 @@ public class RepositoryService : IRepositoryService
             {
                 sha = (string?)c?.sha,
                 message = ((string?)c?.commit?.message ?? "").Split('\n')[0], // 取第一行
-                committer = (string?)c?.committer?.name ?? (string?)c?.author?.login ?? "",
+                committer = (string?)c?.commit?.committer?.name ?? (string?)c?.commit?.author?.name ?? (string?)c?.author?.login ?? "",
                 committedAt = ParseGiteeDate(c?.commit?.author?.date),
                 url = (string?)c?.html_url ?? ""
             }).ToList();

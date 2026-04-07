@@ -25,8 +25,6 @@ public class ReviewService : IReviewService
         _httpClientFactory = httpClientFactory;
         _queue = queue;
         _notify = notify;
-        _httpClientFactory = httpClientFactory;
-        _queue = queue;
     }
 
     /// <summary>确保 API 地址以 /v1 结尾，自动补全</summary>

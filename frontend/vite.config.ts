@@ -8,7 +8,7 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, 'src') }
   },
   server: {
-    port: 3001,
+    port: 6060,
     allowedHosts: ['.trycloudflare.com', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {

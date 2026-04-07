@@ -16,18 +16,22 @@
           <el-form-item>
             <el-input
               v-model="form.username"
+              name="username"
               placeholder="用户名"
               prefix-icon="User"
               clearable
+              autocomplete="username"
             />
           </el-form-item>
           <el-form-item>
             <el-input
               v-model="form.password"
+              name="password"
               type="password"
               placeholder="密码"
               prefix-icon="Lock"
               show-password
+              autocomplete="current-password"
               @keyup.enter="handleLogin"
             />
           </el-form-item>
@@ -41,7 +45,6 @@
           </el-button>
         </el-form>
       </el-card>
-      <p class="login-tip">默认账号：admin / admin123</p>
     </div>
   </div>
 </template>
@@ -53,7 +56,7 @@ import { ElMessage } from 'element-plus'
 import { authApi } from '@/api'
 
 const router = useRouter()
-const form = ref({ username: 'admin', password: 'admin123' })
+const form = ref({ username: '', password: '' })
 const loading = ref(false)
 
 const handleLogin = async () => {
@@ -158,11 +161,4 @@ const handleLogin = async () => {
 }
 .login-btn:hover { opacity: 0.88; transform: translateY(-1px); }
 .login-btn:active { transform: translateY(0); }
-
-.login-tip {
-  font-size: 12px;
-  color: rgba(255,255,255,0.25);
-  text-align: center;
-  margin: 0;
-}
 </style>
