@@ -816,8 +816,10 @@ cache[key] = result;
         var all = await query.ToListAsync();
         var dates = Enumerable.Range(0, 7).Select(i => since.AddDays(i).ToString("MM-dd")).ToList();
         var counts = dates.Select(d => all.Count(x => x.CreateTime.ToString("MM-dd") == d)).ToList();
+        var criticalCounts = dates.Select(d => all.Count(x => x.CreateTime.ToString("MM-dd") == d && x.Severity == "critical")).ToList();
+        var majorCounts = dates.Select(d => all.Count(x => x.CreateTime.ToString("MM-dd") == d && x.Severity == "major")).ToList();
 
-        return Result<object>.Ok(new { dates, counts });
+        return Result<object>.Ok(new { dates, counts, criticalCounts, majorCounts });
     }
 
     /// <summary>仪表盘：仓库问题排名</summary>
@@ -879,6 +881,25 @@ cache[key] = result;
         }).ToList();
 
         return Result<object>.Ok(data);
+    }
+
+    /// <summary>仪表盘：仓库总览</summary>
+    public async Task<Result<object>> GetRepoOverviewAsync()
+    {
+        var totalRepos = await _db.Queryable<Repository>().Where(x => !x.IsDeleted).CountAsync();
+        var totalTasks = await _db.Queryable<ReviewCommit>().Where(x => !x.IsDeleted).CountAsync();
+        var totalReviews = await _db.Queryable<ReviewCommit>().Where(x => !x.IsDeleted && x.Status == 2).CountAsync();
+        var totalIssues = await _db.Queryable<ReviewResult>().Where(x => !x.IsDeleted).CountAsync();
+        var todayIssues = await _db.Queryable<ReviewResult>()
+            .Where(x => !x.IsDeleted && x.CreateTime >= DateTime.Today).CountAsync();
+
+        return Result<object>.Ok(new {
+            totalRepos,
+            totalTasks,
+            totalReviews,
+            totalIssues,
+            todayIssues
+        });
     }
 
     /// <summary>仪表盘：处理效率（平均从认领到修复的时间）</summary>

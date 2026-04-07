@@ -55,6 +55,7 @@ export const reviewApi = {
   trend: (repositoryId?: number) => request.get('/Review/trend', { params: repositoryId ? { repositoryId } : {} }),
   repoRanking: () => request.get('/Review/repo-ranking'),
   recentTasks: (limit = 10) => request.get('/Review/recent-tasks', { params: { limit } }),
+  repoOverview: () => request.get('/Review/repo-overview'),
   handlingStats: () => request.get('/Review/handling-stats'),
 }
 

@@ -90,6 +90,11 @@ public class ReviewController : ControllerBase
     public async Task<Result<object>> GetRecentTasks([FromQuery] int limit = 10) =>
         await _service.GetRecentTasksAsync(limit);
 
+    /// <summary>仪表盘：仓库总览</summary>
+    [HttpGet("repo-overview")]
+    public async Task<Result<object>> GetRepoOverview() =>
+        await _service.GetRepoOverviewAsync();
+
     /// <summary>仪表盘：处理效率</summary>
     [HttpGet("handling-stats")]
     public async Task<Result<object>> GetHandlingStats() =>

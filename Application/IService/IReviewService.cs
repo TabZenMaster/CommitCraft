@@ -27,5 +27,6 @@ public interface IReviewService
     Task<Result<object>> GetTrendAsync(int repositoryId = 0);
     Task<Result<object>> GetRepoRankingAsync();
     Task<Result<object>> GetRecentTasksAsync(int limit = 10);
+    Task<Result<object>> GetRepoOverviewAsync();
     Task<Result<object>> GetHandlingStatsAsync();
 }
