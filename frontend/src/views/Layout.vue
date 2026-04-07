@@ -37,7 +37,7 @@
       </el-menu>
       <div class="sidebar-footer">
         <div class="user-avatar">{{ userInitials }}</div>
-        <div class="user-detail">
+        <div class="user-detail" @click="openProfile" style="cursor:pointer">
           <div class="user-name">{{ userName }}</div>
           <div class="user-role">{{ roleName(user.role) }}</div>
         </div>
@@ -57,12 +57,61 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- 个人资料弹窗 -->
+    <el-dialog v-model="profileVisible" title="个人资料" width="420px">
+      <el-form :model="profileForm" label-width="80px">
+        <el-form-item label="用户名">
+          <el-input :model-value="profileForm.username" disabled />
+        </el-form-item>
+        <el-form-item label="姓名">
+          <el-input v-model="profileForm.realName" />
+        </el-form-item>
+        <el-form-item label="Git用户名">
+          <el-input v-model="profileForm.gitName" placeholder="与 Git 提交作者名一致" />
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-input :model-value="roleName(profileForm.role)" disabled />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-input :model-value="Number(profileForm.status) === 1 ? '启用' : '停用'" disabled />
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-button type="primary" link @click="openPwdDialog">修改密码</el-button>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="profileVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveProfile">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
+      <el-form :model="pwdForm" label-width="80px">
+        <el-form-item label="原密码" required>
+          <el-input v-model="pwdForm.oldPwd" type="password" show-password placeholder="输入原密码" />
+        </el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input v-model="pwdForm.newPwd" type="password" show-password placeholder="至少6位" />
+        </el-form-item>
+        <el-form-item label="确认密码" required>
+          <el-input v-model="pwdForm.confirmPwd" type="password" show-password placeholder="再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdVisible = false">取消</el-button>
+        <el-button type="primary" @click="doChangePwd">确认修改</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { sysUserApi } from '@/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -74,6 +123,49 @@ const userInitials = computed(() => (user.realName || user.username || 'U').slic
 
 function roleName(role: string) {
   return { admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || '用户'
+}
+
+const profileVisible = ref(false)
+const profileForm = ref<any>({})
+const pwdVisible = ref(false)
+const pwdForm = ref({ oldPwd: '', newPwd: '', confirmPwd: '' })
+
+async function openProfile() {
+  const res: any = await sysUserApi.me()
+  if (res.success) {
+    profileForm.value = { ...res.data }
+  } else {
+    profileForm.value = { ...user }
+  }
+  profileVisible.value = true
+}
+
+function openPwdDialog() {
+  pwdForm.value = { oldPwd: '', newPwd: '', confirmPwd: '' }
+  pwdVisible.value = true
+}
+
+async function doChangePwd() {
+  if (!pwdForm.value.oldPwd) { ElMessage.warning('请输入原密码'); return }
+  if (!pwdForm.value.newPwd || pwdForm.value.newPwd.length < 6) { ElMessage.warning('新密码至少6位'); return }
+  if (pwdForm.value.newPwd !== pwdForm.value.confirmPwd) { ElMessage.warning('两次新密码不一致'); return }
+  const res: any = await sysUserApi.changePwd(pwdForm.value.oldPwd, pwdForm.value.newPwd)
+  if (res.success) { ElMessage.success('密码修改成功'); pwdVisible.value = false }
+  else ElMessage.error(res.msg)
+}
+
+async function saveProfile() {
+  if (!profileForm.value.realName) { ElMessage.warning('姓名不能为空'); return }
+  const res: any = await sysUserApi.update({ id: profileForm.value.id, realName: profileForm.value.realName, gitName: profileForm.value.gitName })
+  if (res.success) {
+    ElMessage.success('保存成功')
+    user.realName = profileForm.value.realName
+    user.gitName = profileForm.value.gitName
+    localStorage.setItem('cr_user', JSON.stringify(user))
+    profileVisible.value = false
+  } else {
+    ElMessage.error(res.msg)
+  }
 }
 
 const pageTitles: Record<string, string> = {

@@ -31,7 +31,9 @@ public class AuthController : ControllerBase
             userId = user.Id,
             username = user.Username,
             realName = user.RealName,
-            role = user.Role
+            role = user.Role,
+            status = user.Status,
+            gitName = user.GitName
         });
     }
 

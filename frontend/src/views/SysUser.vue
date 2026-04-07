@@ -24,11 +24,14 @@
           <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160">
+      <el-table-column label="操作" width="220">
         <template #default="{ row }">
-          <el-button size="small" @click="openDialog(row)">编辑</el-button>
-          <el-button v-if="row.username !== 'admin'" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <div style="display:flex;gap:4px;flex-wrap:nowrap">
+            <el-button size="small" @click="openDialog(row)">编辑</el-button>
+            <el-button v-if="row.username !== 'admin'" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
             <span v-else style="color:#999;font-size:12px">-</span>
+            <el-button v-if="isAdmin && row.username !== 'admin'" size="small" type="warning" @click="openReset(row)">重置密码</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -66,17 +69,34 @@
         <el-button type="primary" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="resetVisible" title="重置密码" width="400px">
+      <el-form :model="resetForm" label-width="80px">
+        <el-form-item label="用户名">{{ resetForm.username }}</el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input v-model="resetForm.password" type="password" show-password placeholder="至少6位" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetVisible = false">取消</el-button>
+        <el-button type="primary" @click="doReset">确认重置</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { sysUserApi } from '@/api'
 
 const list = ref<any[]>([])
 const dialogVisible = ref(false)
 const form = ref<any>({ status: 1, role: 'developer' })
+const resetVisible = ref(false)
+const resetForm = ref({ id: 0, username: '', password: '' })
+const currentUser = JSON.parse(localStorage.getItem('cr_user') || '{}')
+const isAdmin = computed(() => currentUser.role === 'admin')
 
 onMounted(loadData)
 
@@ -109,6 +129,21 @@ async function handleDelete(row: any) {
   await ElMessageBox.confirm('确认删除？', '提示')
   const res: any = await sysUserApi.delete(row.id)
   if (res.success) { ElMessage.success('删除成功'); loadData() }
+  else ElMessage.error(res.msg)
+}
+
+function openReset(row: any) {
+  resetForm.value = { id: row.id, username: row.username, password: '' }
+  resetVisible.value = true
+}
+
+async function doReset() {
+  if (!resetForm.value.password || resetForm.value.password.length < 6) {
+    ElMessage.warning('密码长度不能少于6位')
+    return
+  }
+  const res: any = await sysUserApi.resetPassword(resetForm.value.id, resetForm.value.password)
+  if (res.success) { ElMessage.success('密码重置成功'); resetVisible.value = false }
   else ElMessage.error(res.msg)
 }
 

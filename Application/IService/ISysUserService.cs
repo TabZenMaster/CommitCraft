@@ -10,4 +10,6 @@ public interface ISysUserService
     Task<bool> AddAsync(SysUser model);
     Task<bool> UpdateAsync(SysUser model);
     Task<bool> DeleteAsync(int id);
+    Task<bool> ResetPasswordAsync(int id, string newPassword);
+    Task<bool> ChangePasswordAsync(int id, string oldPassword, string newPassword);
 }

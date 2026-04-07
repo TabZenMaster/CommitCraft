@@ -62,10 +62,13 @@ export const reviewApi = {
 }
 
 export const sysUserApi = {
+  me: () => request.get('/SysUser/me'),
   list: () => request.get('/SysUser/list'),
   add: (data: any) => request.post('/SysUser/add', data),
   update: (data: any) => request.post('/SysUser/update', data),
   delete: (id: number) => request.delete(`/SysUser/${id}`),
+  resetPassword: (id: number, newPassword: string) => request.post('/SysUser/reset-password', { id, newPassword }),
+  changePwd: (oldPwd: string, newPwd: string) => request.post('/SysUser/change-password', { oldPwd, newPwd }),
 }
 
 export const scheduleApi = {

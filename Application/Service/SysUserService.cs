@@ -50,4 +50,22 @@ public class SysUserService : ISysUserService
             .Where(x => x.Id == id)
             .ExecuteCommandAsync() > 0;
     }
+
+    public async Task<bool> ResetPasswordAsync(int id, string newPassword)
+    {
+        var user = await _db.Queryable<SysUser>().Where(x => x.Id == id && !x.IsDeleted).FirstAsync();
+        if (user == null) return false;
+        user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        return await _db.Updateable(user).ExecuteCommandAsync() > 0;
+    }
+
+    public async Task<bool> ChangePasswordAsync(int id, string oldPassword, string newPassword)
+    {
+        var user = await _db.Queryable<SysUser>().Where(x => x.Id == id && !x.IsDeleted).FirstAsync();
+        if (user == null) return false;
+        if (!BCrypt.Net.BCrypt.Verify(oldPassword, user.Password))
+            return false;
+        user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        return await _db.Updateable(user).ExecuteCommandAsync() > 0;
+    }
 }
