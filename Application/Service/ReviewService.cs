@@ -171,7 +171,7 @@ public class ReviewService : IReviewService
             if (issues == null) { await MarkFailed(reviewCommitId, aiError ?? "AI 调用失败"); return; }
 
             // 解析结果入库
-            await SaveReviewResults(reviewCommitId, task.RepositoryId, task.CommitSha, issues, files);
+            await SaveReviewResults(reviewCommitId, task.RepositoryId, task.CommitSha, issues, files, task.Committer);
 
             // 更新仓库最后审核时间
             await _db.Updateable<Repository>()
@@ -536,9 +536,20 @@ cache[key] = result;
         return (null, lastEx?.Message);
     }
 
-    private async Task SaveReviewResults(int reviewCommitId, int repositoryId, string commitSha, List<ReviewIssue> issues, List<CommitFile> files)
+    private async Task SaveReviewResults(int reviewCommitId, int repositoryId, string commitSha, List<ReviewIssue> issues, List<CommitFile> files, string committer)
     {
         var fileMap = files.ToDictionary(f => f.filename, f => f, StringComparer.OrdinalIgnoreCase);
+
+        // 自动分配：根据 committer 匹配 GitName
+        var assignToUserId = 0;
+        if (!string.IsNullOrWhiteSpace(committer))
+        {
+            var matchedUser = await _db.Queryable<SysUser>()
+                .Where(x => !x.IsDeleted && x.Status == 1 && x.GitName == committer)
+                .FirstAsync();
+            assignToUserId = matchedUser?.Id ?? 0;
+        }
+
         var entities = issues.Select(i =>
         {
             var f = fileMap.TryGetValue(i.file_path ?? "", out var cf) ? cf : null;
@@ -556,7 +567,8 @@ cache[key] = result;
                 Description = i.description ?? "",
                 Suggestion = i.suggestion ?? "",
                 DiffContent = diffContent,
-                Status = 0,
+                Status = assignToUserId > 0 ? 1 : 0,
+                HandlerUserId = assignToUserId > 0 ? assignToUserId : null,
                 CreateTime = DateTime.Now,
                 IsDeleted = false
             };
@@ -713,8 +725,7 @@ cache[key] = result;
 
         // 非管理员只能认领无人认领的问题
         var user = await _db.Queryable<SysUser>().Where(x => x.Id == userId).FirstAsync();
-        var isAdmin = user?.Role == "admin";
-        if (!isAdmin && result.HandlerUserId != null && result.HandlerUserId != 0)
+        if (user?.Role != "admin" && result.HandlerUserId != null && result.HandlerUserId != 0)
             return Result.Fail("该问题已被认领");
 
         await AddLog(resultId, userId, "claim", result.Status, 1);
@@ -738,7 +749,7 @@ cache[key] = result;
         var user = await _db.Queryable<SysUser>().Where(x => x.Id == userId).FirstAsync();
         var isAdmin = user?.Role == "admin";
         if (!isAdmin && result.HandlerUserId != userId)
-            return Result.Fail("只能处理自己认领的问题");
+            return Result.Fail("只能处理自己的问题");
 
         await AddLog(resultId, userId, status == 2 ? "fix" : "ignore",
             result.Status, status);
@@ -749,6 +760,30 @@ cache[key] = result;
         result.HandlerMemo = memo;
         await _db.Updateable(result).ExecuteCommandAsync();
         return Result.Ok(status == 2 ? "已标记修复" : "已标记忽略");
+    }
+
+    /// <summary>分配问题给指定用户</summary>
+    public async Task<Result> AssignIssueAsync(int resultId, int assignerId, int targetUserId)
+    {
+        var result = await _db.Queryable<ReviewResult>()
+            .Where(x => x.Id == resultId && !x.IsDeleted).FirstAsync();
+        if (result == null) return Result.Fail("问题不存在");
+
+        var assigner = await _db.Queryable<SysUser>().Where(x => x.Id == assignerId).FirstAsync();
+        if (assigner?.Role != "admin" && assigner?.Role != "reviewer")
+            return Result.Fail("只有管理员或审核员可以分配问题");
+
+        var targetUser = await _db.Queryable<SysUser>().Where(x => x.Id == targetUserId && !x.IsDeleted && x.Status == 1).FirstAsync();
+        if (targetUser == null) return Result.Fail("目标用户不存在或已停用");
+
+        var oldHandler = result.HandlerUserId;
+        var oldStatus = result.Status;
+        result.HandlerUserId = targetUserId;
+        result.Status = 1;
+        await _db.Updateable(result).ExecuteCommandAsync();
+
+        await AddLog(resultId, assignerId, $"assign:{oldHandler ?? 0}->{targetUserId}", oldStatus, 1);
+        return Result.Ok($"已分配给 {targetUser.RealName}");
     }
 
     public async Task<Result> RetryReviewAsync(int id)

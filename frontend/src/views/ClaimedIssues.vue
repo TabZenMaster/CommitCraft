@@ -46,17 +46,23 @@
       </el-table-column>
       <el-table-column prop="description" label="问题描述" min-width="200" show-overflow-tooltip />
       <el-table-column prop="suggestion" label="修复建议" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="handlerName" label="认领人" width="100" />
+      <el-table-column label="待处理人" width="100">
+        <template #default="{ row }">
+          <span v-if="row.handlerName" class="handler-link" @click="openAssign(row)">{{ row.handlerName }}</span>
+          <span v-else style="color:#999">-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="代码" width="90">
         <template #default="{ row }">
           <el-button v-if="row.diffContent" size="small" @click="openCode(row.diffContent)">查看代码</el-button>
           <span v-else style="color:#999;font-size:12px">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="success" @click="openFix(row)">标记修复</el-button>
           <el-button size="small" type="info" plain @click="openIgnore(row)">忽略</el-button>
+          
         </template>
       </el-table-column>
     </el-table>
@@ -97,6 +103,21 @@
       </template>
     </el-dialog>
 
+    <!-- 分配弹窗 -->
+    <el-dialog v-model="assignVisible" title="重新分配" width="400px">
+      <el-form :model="assignForm" label-width="80px">
+        <el-form-item label="分配给">
+          <el-select v-model="assignForm.targetUserId" placeholder="选择用户" style="width:100%">
+            <el-option v-for="u in allUsers" :key="u.id" :label="u.realName + ' (' + u.username + ')(' + roleName(u.role) + ')'" :value="u.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" @click="doAssign" :disabled="!assignForm.targetUserId">确认分配</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 全屏代码查看器 -->
     <Teleport to="body">
       <div v-if="overlayVisible" class="cv-overlay" @click.self="closeOverlay">
@@ -114,9 +135,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, nextTick, onMounted, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { reviewApi, repositoryApi } from '@/api'
+import { reviewApi, repositoryApi, sysUserApi } from '@/api'
 import { html } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
 
@@ -133,6 +154,9 @@ const fixVisible = ref(false)
 const fixForm = ref({ id: 0, memo: '' })
 const ignoreVisible = ref(false)
 const ignoreForm = ref({ id: 0, memo: '' })
+const assignVisible = ref(false)
+const assignForm = ref({ id: 0, targetUserId: undefined as number | undefined })
+const allUsers = ref<any[]>([])
 
 const overlayVisible = ref(false)
 const diffRef = ref<HTMLElement>()
@@ -201,10 +225,18 @@ const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: ''
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
 const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
+const roleName = (role: string) => ({ admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || role)
+
+const currentUser = JSON.parse(localStorage.getItem('cr_user') || '{}')
+const canAssign = computed(() => currentUser.role === 'admin' || currentUser.role === 'reviewer')
 
 onMounted(async () => {
   const r2 = await repositoryApi.list()
   if (r2.success) repos.value = r2.data
+  Promise.allSettled([sysUserApi.list()]).then(([usersResult]) => {
+    if (usersResult.status === 'fulfilled' && usersResult.value.success)
+      allUsers.value = usersResult.value.data || []
+  })
   loadData()
 })
 
@@ -238,6 +270,14 @@ async function doFix() {
 }
 
 function openIgnore(row: any) { ignoreForm.value = { id: row.id, memo: '' }; ignoreVisible.value = true }
+
+function openAssign(row: any) { assignForm.value = { id: row.id, targetUserId: undefined }; assignVisible.value = true }
+async function doAssign() {
+  if (!assignForm.value.targetUserId) { ElMessage.warning('请选择要分配的用户'); return }
+  const res: any = await reviewApi.assign({ id: assignForm.value.id, targetUserId: assignForm.value.targetUserId })
+  if (res.success) { ElMessage.success(res.data || '已分配'); assignVisible.value = false; loadData() }
+  else ElMessage.error(res.msg)
+}
 async function doIgnore() {
   if (!ignoreForm.value.memo) { ElMessage.warning('请填写忽略理由'); return }
   const res: any = await reviewApi.handle({ id: ignoreForm.value.id, status: 3, memo: ignoreForm.value.memo })
@@ -248,6 +288,8 @@ async function doIgnore() {
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.handler-link { color: #409eff; cursor: pointer; }
+.handler-link:hover { text-decoration: underline; }
 
 /* 全屏覆盖层 */
 .cv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; overflow: hidden; }

@@ -65,6 +65,16 @@ public class ReviewController : ControllerBase
         return await _service.HandleIssueAsync(dto.Id, id, name, dto.Status, dto.Memo);
     }
 
+    /// <summary>分配问题</summary>
+    [Authorize(Roles = "admin,reviewer")]
+    [HttpPost("assign")]
+    public async Task<Result> AssignIssue([FromBody] AssignDto dto)
+    {
+        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idStr, out var assignerId)) return Result.Fail("无效 Token");
+        return await _service.AssignIssueAsync(dto.Id, assignerId, dto.TargetUserId);
+    }
+
     /// <summary>重试失败任务</summary>
     [Authorize(Roles = "admin,reviewer")]
     [HttpPost("retry/{id}")]
@@ -119,4 +129,10 @@ public class HandleDto
     /// <summary>2=已修复 3=已忽略</summary>
     public int Status { get; set; }
     public string? Memo { get; set; }
+}
+
+public class AssignDto
+{
+    public int Id { get; set; }
+    public int TargetUserId { get; set; }
 }

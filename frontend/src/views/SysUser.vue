@@ -9,6 +9,9 @@
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="realName" label="姓名" />
+      <el-table-column prop="gitName" label="Git用户名" width="140">
+        <template #default="{ row }">{{ row.gitName || '-' }}</template>
+      </el-table-column>
       <el-table-column prop="role" label="角色" width="120">
         <template #default="{ row }">
           <el-tag :type="row.role === 'admin' ? 'danger' : row.role === 'reviewer' ? 'warning' : 'info'" size="small">
@@ -37,6 +40,9 @@
         </el-form-item>
         <el-form-item label="姓名">
           <el-input v-model="form.realName" />
+        </el-form-item>
+        <el-form-item label="Git用户名">
+          <el-input v-model="form.gitName" placeholder="与 Git 提交作者名一致，用于自动分配" />
         </el-form-item>
         <el-form-item label="密码" v-if="!form.id">
           <el-input v-model="form.password" type="password" show-password placeholder="默认 123456" />

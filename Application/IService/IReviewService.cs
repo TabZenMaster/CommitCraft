@@ -20,6 +20,7 @@ public interface IReviewService
     Task<Result> ClaimIssueAsync(int resultId, int userId, string userName);
     /// <summary>处理问题（修复/忽略）</summary>
     Task<Result> HandleIssueAsync(int resultId, int userId, string userName, int status, string? memo);
+    Task<Result> AssignIssueAsync(int resultId, int assignerId, int targetUserId);
     /// <summary>重试失败的任务</summary>
     Task<Result> RetryReviewAsync(int id);
     /// <summary>获取问题统计</summary>

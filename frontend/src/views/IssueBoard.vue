@@ -56,7 +56,7 @@
         <template #default="{ row }">
           <template v-if="row.status === 0">
             <el-button size="small" type="primary" @click="handleClaim(row)">认领</el-button>
-            <el-button size="small" type="danger" plain @click="openIgnore(row)">忽略</el-button>
+            <el-button v-if="canAssign" size="small" type="warning" plain @click="openAssign(row)">分配</el-button>
           </template>
           <template v-else-if="row.status === 1">
             <el-button size="small" type="success" @click="openFix(row)">标记修复</el-button>
@@ -105,6 +105,21 @@
       </template>
     </el-dialog>
 
+    <!-- 分配弹窗 -->
+    <el-dialog v-model="assignVisible" title="分配问题" width="400px">
+      <el-form :model="assignForm" label-width="80px">
+        <el-form-item label="分配给">
+          <el-select v-model="assignForm.targetUserId" placeholder="选择用户" style="width:100%">
+            <el-option v-for="u in allUsers" :key="u.id" :label="u.realName + ' (' + u.username + ')(' + roleName(u.role) + ')'" :value="u.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="assignVisible = false">取消</el-button>
+        <el-button type="primary" @click="doAssign" :disabled="!assignForm.targetUserId">确认分配</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailVisible" title="处理详情" width="480px">
       <el-descriptions :column="1" border>
@@ -134,9 +149,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, watch } from 'vue'
+import { ref, nextTick, onMounted, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { reviewApi, repositoryApi } from '@/api'
+import { reviewApi, repositoryApi, sysUserApi } from '@/api'
 import { html } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
 
@@ -153,6 +168,9 @@ const fixVisible = ref(false)
 const fixForm = ref({ id: 0, memo: '' })
 const ignoreVisible = ref(false)
 const ignoreForm = ref({ id: 0, memo: '' })
+const assignVisible = ref(false)
+const assignForm = ref({ id: 0, targetUserId: undefined as number | undefined })
+const allUsers = ref<any[]>([])
 const detailVisible = ref(false)
 const detailData = ref<any>({})
 
@@ -223,10 +241,18 @@ const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: ''
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
 const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
+const roleName = (role: string) => ({ admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || role)
+
+const currentUser = JSON.parse(localStorage.getItem('cr_user') || '{}')
+const canAssign = computed(() => currentUser.role === 'admin' || currentUser.role === 'reviewer')
 
 onMounted(async () => {
   const r2 = await repositoryApi.list()
   if (r2.success) repos.value = r2.data
+  Promise.allSettled([sysUserApi.list()]).then(([usersResult]) => {
+    if (usersResult.status === 'fulfilled' && usersResult.value.success)
+      allUsers.value = usersResult.value.data || []
+  })
   loadData()
 })
 
@@ -266,6 +292,14 @@ async function doFix() {
 }
 
 function openIgnore(row: any) { ignoreForm.value = { id: row.id, memo: '' }; ignoreVisible.value = true }
+
+function openAssign(row: any) { assignForm.value = { id: row.id, targetUserId: undefined }; assignVisible.value = true }
+async function doAssign() {
+  if (!assignForm.value.targetUserId) { ElMessage.warning('请选择要分配的用户'); return }
+  const res: any = await reviewApi.assign({ id: assignForm.value.id, targetUserId: assignForm.value.targetUserId })
+  if (res.success) { ElMessage.success(res.data || '已分配'); assignVisible.value = false; loadData() }
+  else ElMessage.error(res.msg)
+}
 async function doIgnore() {
   if (!ignoreForm.value.memo) { ElMessage.warning('请填写忽略理由'); return }
   const res: any = await reviewApi.handle({ id: ignoreForm.value.id, status: 3, memo: ignoreForm.value.memo })

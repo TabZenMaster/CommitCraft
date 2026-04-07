@@ -172,4 +172,7 @@ public class SysUser : BaseEntity
     public string Role { get; set; } = "developer";
     /// <summary>1=启用 0=停用</summary>
     public int Status { get; set; } = 1;
+    /// <summary>Git 提交者用户名，用于自动分配审核问题</summary>
+    [SugarColumn(IsNullable = true, Length = 100)]
+    public string? GitName { get; set; }
 }

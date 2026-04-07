@@ -122,6 +122,7 @@ void InitDatabase(IServiceProvider sp)
     // 修正列 nullable（数据清空后重建时确保正确）
     try { db.Ado.ExecuteCommand("ALTER TABLE cr_review_result MODIFY COLUMN HandlerUserId INT NULL"); Console.WriteLine("[Mig] cr_review_result.HandlerUserId -> nullable"); } catch { }
     try { db.Ado.ExecuteCommand("ALTER TABLE cr_handler_log MODIFY COLUMN OperatorUserId INT NULL"); Console.WriteLine("[Mig] cr_handler_log.OperatorUserId -> nullable"); } catch { }
+    try { db.Ado.ExecuteCommand("ALTER TABLE sys_user ADD COLUMN GitName VARCHAR(100) NULL"); Console.WriteLine("[Mig] sys_user.GitName added"); } catch { }
 
     var exists = db.Queryable<SysUser>().Where(x => x.Username == "admin" && !x.IsDeleted).Any();
     if (!exists)

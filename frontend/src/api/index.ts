@@ -51,6 +51,7 @@ export const reviewApi = {
   }) => request.get('/Review/results', { params }),
   claim: (id: number) => request.post('/Review/claim', { id }),
   handle: (data: { id: number; status: number; memo?: string }) => request.post('/Review/handle', data),
+  assign: (data: { id: number; targetUserId: number }) => request.post('/Review/assign', data),
   retry: (id: number) => request.post(`/Review/retry/${id}`),
   statistics: (repositoryId?: number) => request.get('/Review/statistics', { params: repositoryId ? { repositoryId } : {} }),
   trend: (repositoryId?: number) => request.get('/Review/trend', { params: repositoryId ? { repositoryId } : {} }),
