@@ -1,0 +1,99 @@
+/* 全局页面样式规范 */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #f5f7fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #303133;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100%;
+}
+
+:root {
+  --page-bg: #f5f7fa;
+  --card-radius: 12px;
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 6px 20px rgba(0, 0, 0, 0.1);
+  --header-height: 56px;
+  --sidebar-width: 220px;
+}
+
+/* 通用页面容器 */
+.page-container {}
+
+/* 页面标题栏 */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.page-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e2a38;
+}
+
+/* 通用卡片 */
+.el-card {
+  border-radius: var(--card-radius) !important;
+  border: 1px solid #f0f0f0 !important;
+  box-shadow: var(--card-shadow) !important;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.el-card:hover {
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+/* 通用表格 */
+.el-table {
+  border-radius: var(--card-radius);
+  overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: #fafafa !important;
+  font-weight: 600;
+  color: #606266;
+  font-size: 13px;
+}
+.el-table td.el-table__cell { font-size: 14px; }
+
+/* 通用对话框 */
+.el-dialog {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+.el-dialog__header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-right: 0 !important;
+}
+.el-dialog__title { font-weight: 600; font-size: 15px; color: #1e2a38; }
+.el-dialog__body { padding: 20px 24px; }
+.el-dialog__footer { padding: 12px 20px 16px; border-top: 1px solid #f0f0f0; }
+
+/* 通用按钮大小 */
+.el-button { border-radius: 8px; }
+
+/* 表单项 */
+.el-form-item__label { font-size: 13px; color: #606266; }
+.el-input__wrapper { border-radius: 8px !important; }
+.el-select .el-input__wrapper { border-radius: 8px !important; }
+
+/* 状态标签圆角 */
+.el-tag { border-radius: 6px !important; }
+
+/* 空状态 */
+.el-empty__description p { color: #909399; font-size: 13px; }
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #c0c4cc; }
