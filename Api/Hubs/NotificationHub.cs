@@ -8,6 +8,14 @@ namespace CodeReview.Api.Hubs;
 /// </summary>
 public class NotificationHub : Hub
 {
+    /// <summary>
+    /// 流式 AI 回答（客户端通过 SignalR 接收 token 推送）
+    /// </summary>
+    public async Task StreamAiAnswer(string streamId)
+    {
+        //streamId 对应客户端 WebSocket 连接 ID，服务端通过它定向推送
+    }
+
     /// <summary>建立连接后记录 userId → connectionId 映射（支持定向推送）</summary>
     public override async Task OnConnectedAsync()
     {

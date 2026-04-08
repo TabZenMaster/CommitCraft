@@ -29,38 +29,43 @@
     </div>
 
     <el-table v-loading="loading" :data="results" stripe style="width:100%">
-      <el-table-column type="index" width="60" align="center" />
-      <el-table-column prop="filePath" label="文件" min-width="200" show-overflow-tooltip />
-      <el-table-column label="行号" width="110" align="center">
-        <template #default="{ row }">{{ row.lineStart || '-' }}~{{ row.lineEnd || '-' }}</template>
+      <el-table-column type="index" width="50" align="center" />
+      <el-table-column label="文件" width="300" show-overflow-tooltip>
+        <template #default="{ row }">
+          <div class="file-cell">
+            <div class="file-path">{{ row.filePath }}</div>
+            <div class="file-lines">{{ row.lineStart || '-' }}{{ row.lineEnd && row.lineEnd !== row.lineStart ? `~${row.lineEnd}` : '' }}</div>
+          </div>
+        </template>
       </el-table-column>
-      <el-table-column prop="issueType" label="类型" width="100" align="center">
+      <el-table-column prop="issueType" label="类型" width="110" align="center">
         <template #default="{ row }">
           <span class="table-tag" :class="typeTag(row.issueType)">{{ typeName(row.issueType) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="severity" label="严重程度" width="100" align="center">
+      <el-table-column prop="severity" label="严重程度" width="90" align="center">
         <template #default="{ row }">
           <span class="table-tag" :class="sevTag(row.severity)">{{ sevName(row.severity) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="问题描述" min-width="220" show-overflow-tooltip />
-      <el-table-column prop="suggestion" label="修复建议" min-width="180" show-overflow-tooltip />
-      <el-table-column label="待处理人" width="100" align="center">
+      <el-table-column prop="description" label="问题描述" width="300" show-overflow-tooltip />
+      <el-table-column prop="suggestion" label="修复建议" width="300" show-overflow-tooltip />
+      <el-table-column label="待处理人" width="90" align="center">
         <template #default="{ row }">
           <span v-if="row.handlerName" class="action-link" @click="openAssign(row)">{{ row.handlerName }}</span>
           <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="代码" width="80" align="center">
+      <el-table-column label="代码" width="70" align="center">
         <template #default="{ row }">
           <button v-if="row.diffContent" class="action-link" @click="openCode(row.diffContent)">查看</button>
           <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" min-width="120" fixed="right">
         <template #default="{ row }">
           <div class="action-btns">
+            <button class="action-link ai-btn" @click="openAsk(row)">AI分析</button>
             <button class="action-link success" @click="openFix(row)">修复</button>
             <button class="action-link" @click="openIgnore(row)">忽略</button>
           </div>
@@ -120,6 +125,9 @@
     </el-dialog>
 
     <!-- 全屏代码查看器 -->
+    <!-- AI 询问弹窗 -->
+    <AskAiDialog v-model="askDialogVisible" :issue="askDialogIssue" />
+
     <Teleport to="body">
       <div v-if="overlayVisible" class="cv-overlay" @click.self="closeOverlay">
         <div class="cv-panel">
@@ -139,6 +147,7 @@
 import { ref, nextTick, onMounted, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { reviewApi, repositoryApi, sysUserApi } from '@/api'
+import AskAiDialog from '@/components/AskAiDialog.vue'
 import { html } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
 
@@ -159,6 +168,9 @@ const ignoreForm = ref({ id: 0, memo: '' })
 const assignVisible = ref(false)
 const assignForm = ref({ id: 0, targetUserId: undefined as number | undefined })
 const allUsers = ref<any[]>([])
+
+const askDialogVisible = ref(false)
+const askDialogIssue = ref<any>({})
 
 const overlayVisible = ref(false)
 const diffRef = ref<HTMLElement>()
@@ -275,6 +287,11 @@ async function doFix() {
 
 function openIgnore(row: any) { ignoreForm.value = { id: row.id, memo: '' }; ignoreVisible.value = true }
 
+function openAsk(row: any) {
+  askDialogIssue.value = { id: row.id, filePath: row.filePath, lineStart: row.lineStart, lineEnd: row.lineEnd, issueType: row.issueType, severity: row.severity, description: row.description, suggestion: row.suggestion || '', diffContent: row.diffContent || '' }
+  askDialogVisible.value = true
+}
+
 function openAssign(row: any) { assignForm.value = { id: row.id, targetUserId: undefined }; assignVisible.value = true }
 async function doAssign() {
   if (!assignForm.value.targetUserId) { ElMessage.warning('请选择要分配的用户'); return }
@@ -338,4 +355,35 @@ async function doIgnore() {
 
 html.cv-lock,
 html.cv-lock body { overflow: hidden !important; height: 100% !important; }
+
+.file-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.3;
+}
+.file-path {
+  color: var(--text-primary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.file-lines {
+  color: var(--text-secondary, #909399);
+  font-size: 11px;
+}
+
+.ai-btn {
+  background: none;
+  color: #8b5cf6;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ai-btn:hover {
+  color: #7c3aed;
+}
 </style>

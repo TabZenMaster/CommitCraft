@@ -55,6 +55,7 @@
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <div class="action-btns">
+            <button class="action-link ai-btn" @click="openAsk(row)">AI分析</button>
             <template v-if="row.status === 0">
               <button class="action-link" @click="handleClaim(row)">认领</button>
               <button v-if="canAssign" class="action-link warning" @click="openAssign(row)">分配</button>
@@ -134,6 +135,9 @@
       </template>
     </el-dialog>
 
+    <!-- AI 询问弹窗 -->
+    <AskAiDialog v-model="askDialogVisible" :issue="askDialogIssue" />
+
     <!-- 全屏代码查看器 -->
     <Teleport to="body">
       <div v-if="overlayVisible" class="cv-overlay" @click.self="closeOverlay">
@@ -154,6 +158,7 @@
 import { ref, nextTick, onMounted, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { reviewApi, repositoryApi, sysUserApi } from '@/api'
+import AskAiDialog from '@/components/AskAiDialog.vue'
 import { html } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
 
@@ -176,6 +181,9 @@ const assignForm = ref({ id: 0, targetUserId: undefined as number | undefined })
 const allUsers = ref<any[]>([])
 const detailVisible = ref(false)
 const detailData = ref<any>({})
+
+const askDialogVisible = ref(false)
+const askDialogIssue = ref<any>({})
 
 const overlayVisible = ref(false)
 const diffRef = ref<HTMLElement>()
@@ -289,6 +297,11 @@ async function handleClaim(row: any) {
 }
 
 function openFix(row: any) { fixForm.value = { id: row.id, memo: '' }; fixVisible.value = true }
+
+function openAsk(row: any) {
+  askDialogIssue.value = { id: row.id, filePath: row.filePath, lineStart: row.lineStart, lineEnd: row.lineEnd, issueType: row.issueType, severity: row.severity, description: row.description, suggestion: row.suggestion || '', diffContent: row.diffContent || '' }
+  askDialogVisible.value = true
+}
 async function doFix() {
   if (!fixForm.value.memo) { ElMessage.warning('请填写修复方案'); return }
   const res: any = await reviewApi.handle({ id: fixForm.value.id, status: 2, memo: fixForm.value.memo })
@@ -366,4 +379,15 @@ function openDetail(row: any) {
 
 html.cv-lock,
 html.cv-lock body { overflow: hidden !important; height: 100% !important; }
+.ai-btn {
+  background: none;
+  color: #8b5cf6;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ai-btn:hover {
+  color: #7c3aed;
+}
 </style>

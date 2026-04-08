@@ -13,5 +13,11 @@ public interface INotificationService
 
     /// <summary>通知任务开始审核</summary>
     Task NotifyReviewStartedAsync(int repositoryId, int reviewCommitId);
+
+    /// <summary>流式推送 AI 回答 token 到指定客户端</summary>
+    Task SendAiStreamTokenAsync(string connectionId, string token);
+
+    /// <summary>通知客户端 AI 回答结束</summary>
+    Task SendAiStreamEndAsync(string connectionId);
 }
 

@@ -90,4 +90,14 @@ public class SignalRNotificationService : INotificationService
         };
         await _hub.Clients.All.SendAsync("ReceiveNotification", payload);
     }
+
+    public async Task SendAiStreamTokenAsync(string connectionId, string token)
+    {
+        await _hub.Clients.Client(connectionId).SendAsync("ReceiveAiStreamToken", token);
+    }
+
+    public async Task SendAiStreamEndAsync(string connectionId)
+    {
+        await _hub.Clients.Client(connectionId).SendAsync("ReceiveAiStreamEnd");
+    }
 }

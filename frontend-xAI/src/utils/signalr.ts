@@ -3,6 +3,7 @@ import { ElNotification } from 'element-plus'
 import { refreshTasks } from './eventBus'
 
 let connection: HubConnection | null = null
+export { connection }
 let starting = false
 
 interface Notification {

@@ -81,6 +81,22 @@ public class ReviewController : ControllerBase
     public async Task<Result> RetryReview(int id) =>
         await _service.RetryReviewAsync(id);
 
+    /// <summary>AI 追问（流式）</summary>
+    [HttpPost("ask")]
+    public async Task<Result> AskIssue([FromBody] AskDto dto, [FromQuery] string? connectionId)
+    {
+        if (dto.IssueId <= 0 || string.IsNullOrWhiteSpace(dto.Question))
+            return Result.Fail("参数错误");
+
+        // 优先走流式（前端传了 connectionId）
+        if (!string.IsNullOrWhiteSpace(connectionId))
+            return await _service.AskIssueStreamAsync(dto.IssueId, dto.Question, connectionId);
+
+        // 否则走普通模式
+        var r = await _service.AskIssueAsync(dto.IssueId, dto.Question);
+        return Result.Ok(r.Data ?? "");
+    }
+
     /// <summary>问题统计</summary>
     [HttpGet("statistics")]
     public async Task<Result<object>> GetStatistics([FromQuery] int repositoryId = 0) =>
@@ -135,4 +151,10 @@ public class AssignDto
 {
     public int Id { get; set; }
     public int TargetUserId { get; set; }
+}
+
+public class AskDto
+{
+    public int IssueId { get; set; }
+    public string Question { get; set; } = "";
 }

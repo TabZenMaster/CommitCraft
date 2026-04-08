@@ -1091,6 +1091,7 @@ code {
 .action-link.warning { color: var(--color-major); }
 .action-link.muted { color: var(--text-muted); }
 .action-link.muted:hover { text-decoration: none; opacity: 1; }
+.action-link.primary { color: var(--color-primary, #409eff); font-weight: 600; }
 
 /* Clean table tags */
 .table-tag {

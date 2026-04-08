@@ -30,4 +30,8 @@ public interface IReviewService
     Task<Result<object>> GetRecentTasksAsync(int limit = 10);
     Task<Result<object>> GetRepoOverviewAsync();
     Task<Result<object>> GetHandlingStatsAsync();
+    /// <summary>AI 追问</summary>
+    Task<Result<string>> AskIssueAsync(int resultId, string question);
+    /// <summary>AI 追问（流式，通过 SignalR 推送 token）</summary>
+    Task<Result> AskIssueStreamAsync(int resultId, string question, string connectionId);
 }

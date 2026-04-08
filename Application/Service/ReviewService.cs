@@ -810,6 +810,245 @@ cache[key] = result;
         return Result.Ok("已重新加入队列");
     }
 
+    public async Task<Result<string>> AskIssueAsync(int resultId, string question)
+    {
+        var result = await _db.Queryable<ReviewResult>()
+            .Where(x => x.Id == resultId && !x.IsDeleted)
+            .FirstAsync();
+        if (result == null) return Result<string>.Fail("问题不存在");
+
+        var repo = await _db.Queryable<Repository>()
+            .Where(x => x.Id == result.RepositoryId && !x.IsDeleted)
+            .FirstAsync();
+        if (repo == null) return Result<string>.Fail("仓库不存在");
+
+        var model = await _db.Queryable<ModelConfig>()
+            .Where(x => x.Id == repo.ModelConfigId && !x.IsDeleted && x.Status == 1)
+            .FirstAsync();
+        if (model == null) return Result<string>.Fail("模型配置不存在或已停用");
+
+        model.ApiKey = CryptoHelper.Decrypt(model.ApiKey);
+
+        var diffContent = string.IsNullOrEmpty(result.DiffContent) ? "" :
+            result.DiffContent.Length > 10000 ? result.DiffContent[..10000] + "\n... (内容截断)" : result.DiffContent;
+
+        var systemPrompt = @"你是一位资深代码安全专家，专注于代码问题分析和修复方案制定。
+
+擅长领域：
+- 安全漏洞：SQL注入、XSS、CSRF、路径遍历、敏感信息泄露、权限绕过等
+- 正确性：逻辑错误、边界条件、空指针、类型错误等
+- 性能：重复计算、不必要的循环、资源泄漏等
+- 可维护性：重复代码、过长函数、命名不规范等
+- 最佳实践：异常处理、日志规范、配置管理等
+
+回答风格：
+1. 直接给出修复方案（具体代码或操作步骤）
+2. 解释问题根因
+3. 给出修复后的代码示例（关键部分）
+4. 如有必要，给出预防建议
+
+回答格式：用 Markdown 输出，代码块用 ``` 包裹。";
+
+        var userPrompt = $"代码审查问题详情：\n\n" +
+            $"文件：{result.FilePath}\n" +
+            (result.LineStart.HasValue ? $"行号：{result.LineStart}{(result.LineEnd.HasValue && result.LineEnd != result.LineStart ? $"-{result.LineEnd}" : "")}\n" : "") +
+            $"问题类型：{result.IssueType}\n" +
+            $"严重程度：{result.Severity}\n" +
+            $"问题描述：{result.Description}\n" +
+            $"修复建议：{result.Suggestion}\n" +
+            $"相关代码：\n```\n{diffContent}\n```\n\n" +
+            $"用户追问：{question}";
+
+        var (answer, error) = await CallAiAsk(model, userPrompt, systemPrompt);
+        if (error != null) return Result<string>.Fail($"AI 调用失败：{error}");
+
+        return Result<string>.Ok(answer ?? "");
+    }
+
+    public async Task<Result> AskIssueStreamAsync(int resultId, string question, string connectionId)
+    {
+        var result = await _db.Queryable<ReviewResult>()
+            .Where(x => x.Id == resultId && !x.IsDeleted)
+            .FirstAsync();
+        if (result == null) return Result.Fail("问题不存在");
+
+        var repo = await _db.Queryable<Repository>()
+            .Where(x => x.Id == result.RepositoryId && !x.IsDeleted)
+            .FirstAsync();
+        if (repo == null) return Result.Fail("仓库不存在");
+
+        var model = await _db.Queryable<ModelConfig>()
+            .Where(x => x.Id == repo.ModelConfigId && !x.IsDeleted && x.Status == 1)
+            .FirstAsync();
+        if (model == null) return Result.Fail("模型配置不存在或已停用");
+
+        model.ApiKey = CryptoHelper.Decrypt(model.ApiKey);
+
+        var diffContent = string.IsNullOrEmpty(result.DiffContent) ? "" :
+            result.DiffContent.Length > 10000 ? result.DiffContent[..10000] + "\n... (内容截断)" : result.DiffContent;
+
+        var systemPrompt = @"你是一位资深代码安全专家，专注于代码问题分析和修复方案制定。
+
+擅长领域：
+- 安全漏洞：SQL注入、XSS、CSRF、路径遍历、敏感信息泄露、权限绕过等
+- 正确性：逻辑错误、边界条件、空指针、类型错误等
+- 性能：重复计算、不必要的循环、资源泄漏等
+- 可维护性：重复代码、过长函数、命名不规范等
+- 最佳实践：异常处理、日志规范、配置管理等
+
+回答风格：
+1. 直接给出修复方案（具体代码或操作步骤）
+2. 解释问题根因
+3. 给出修复后的代码示例（关键部分）
+4. 如有必要，给出预防建议
+
+回答格式：用 Markdown 输出，代码块用 ``` 包裹。";
+
+        var userPrompt = $"代码审查问题详情：\n\n" +
+            $"文件：{result.FilePath}\n" +
+            (result.LineStart.HasValue ? $"行号：{result.LineStart}{(result.LineEnd.HasValue && result.LineEnd != result.LineStart ? $"-{result.LineEnd}" : "")}\n" : "") +
+            $"问题类型：{result.IssueType}\n" +
+            $"严重程度：{result.Severity}\n" +
+            $"问题描述：{result.Description}\n" +
+            $"修复建议：{result.Suggestion}\n" +
+            $"相关代码：\n```\n{diffContent}\n```\n\n" +
+            $"用户追问：{question}";
+
+        var error = await CallAiAskStream(model, userPrompt, systemPrompt, async token =>
+        {
+            if (_notify != null)
+                await _notify.SendAiStreamTokenAsync(connectionId, token);
+        });
+
+        if (error != null)
+        {
+            if (_notify != null)
+                await _notify.SendAiStreamEndAsync(connectionId);
+            return Result.Fail($"AI 调用失败：{error}");
+        }
+
+        if (_notify != null)
+            await _notify.SendAiStreamEndAsync(connectionId);
+
+        return Result.Ok();
+    }
+
+    private async Task<string?> CallAiAskStream(ModelConfig model, string userPrompt, string systemPrompt, Func<string, Task> onToken)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(120);
+
+            var body = new
+            {
+                model = model.Name,
+                messages = new[]
+                {
+                    new { role = "system", content = systemPrompt },
+                    new { role = "user", content = userPrompt }
+                },
+                stream = true,
+                max_tokens = 2048,
+                temperature = 0.2
+            };
+
+            var content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{FixApiBase(model.ApiBase)}/chat/completions")
+            {
+                Content = content
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", model.ApiKey);
+
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var raw = await response.Content.ReadAsStringAsync();
+                string? errMsg = null;
+                try { errMsg = JsonConvert.DeserializeObject<dynamic>(raw)?.error?.message?.ToString(); } catch { }
+                return errMsg ?? $"HTTP {(int)response.StatusCode}";
+            }
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new StreamReader(stream);
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
+                var data = line["data: ".Length..].Trim();
+                if (data == "[DONE]") break;
+
+                try
+                {
+                    var json = JsonConvert.DeserializeObject<dynamic>(data);
+                    var token = json?.choices?[0]?.delta?.content?.ToString();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        await onToken(token);
+                    }
+                }
+                catch { }
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
+
+    private async Task<(string? Answer, string? Error)> CallAiAsk(ModelConfig model, string userPrompt, string systemPrompt)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(120);
+
+            var body = new
+            {
+                model = model.Name,
+                messages = new[]
+                {
+                    new { role = "system", content = systemPrompt },
+                    new { role = "user", content = userPrompt }
+                },
+                stream = false,
+                max_tokens = 2048,
+                temperature = 0.2
+            };
+
+            var content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{FixApiBase(model.ApiBase)}/chat/completions")
+            {
+                Content = content
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", model.ApiKey);
+
+            var response = await client.SendAsync(request);
+            var raw = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // 读取 error 内容
+                string? errMsg = null;
+                try { errMsg = JsonConvert.DeserializeObject<dynamic>(raw)?.error?.message?.ToString(); } catch { }
+                return (null, errMsg ?? $"HTTP {(int)response.StatusCode}");
+            }
+
+            var json = JsonConvert.DeserializeObject<dynamic>(raw);
+            var choice = json?.choices?[0];
+            var answer = choice?.message?.content?.ToString();
+            return (answer, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, ex.Message);
+        }
+    }
+
     private async Task AddLog(int resultId, int userId, string action, int from, int to)
     {
         await _db.Insertable(new HandlerLog
