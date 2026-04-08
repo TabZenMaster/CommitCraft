@@ -111,8 +111,8 @@
                 <span class="commit-sha">{{ row.commitSha?.slice(0, 7) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="issueCount" label="问题数" width="60" align="center" />
-            <el-table-column prop="createTime" label="时间" width="100" />
+            <el-table-column prop="issueCount" label="问题数" width="90" align="center" />
+            <el-table-column prop="createTime" label="时间" />
           </el-table>
         </div>
       </div>
@@ -195,8 +195,8 @@ function formatTime() {
   lastUpdate.value = now.toTimeString().slice(0, 5)
 }
 
-async function loadAll() {
-  loading.value = true
+async function loadAll(showLoading = true) {
+  if (showLoading) loading.value = true
   const [st, tr, rr, rt, hs, ro] = await Promise.all([
     reviewApi.statistics(filterRepo.value),
     reviewApi.trend(filterRepo.value),
@@ -212,7 +212,7 @@ async function loadAll() {
   if (hs.success) handling.value = hs.data || { avgHours: 0, count: 0, details: [] }
   if (ro.success) overview.value = ro.data || {}
   formatTime()
-  loading.value = false
+  if (showLoading) loading.value = false
   await nextTick()
   renderCharts()
 }
@@ -326,7 +326,7 @@ function reRenderCharts() {
 onMounted(() => {
   repositoryApi.list().then(res => { if (res.success) repos.value = res.data || [] })
   loadAll()
-  autoTimer = setInterval(loadAll, 30000)
+  autoTimer = setInterval(() => loadAll(false), 30000)
   window.addEventListener('resize', () => {
     trendChartIns?.resize(); statusChartIns?.resize(); rankingChartIns?.resize(); typeChartIns?.resize()
   })
@@ -345,7 +345,7 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard {
-  padding: 20px 24px;
+  padding: 12px 16px;
   min-height: 100vh;
 }
 
@@ -373,11 +373,11 @@ onUnmounted(() => {
 }
 
 .dash-h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 16px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
 }
 
@@ -394,7 +394,7 @@ onUnmounted(() => {
 }
 
 .update-time {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -421,12 +421,12 @@ onUnmounted(() => {
 }
 
 .section-label {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 11px;
   font-weight: 400;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
+  text-transform: none;
+  letter-spacing: normal;
   margin-bottom: 12px;
   padding-left: 4px;
 }
@@ -590,11 +590,11 @@ onUnmounted(() => {
 }
 
 .chart-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 12px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
 }
 

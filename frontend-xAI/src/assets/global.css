@@ -52,6 +52,9 @@
   --radius-none: 0px;
   --radius-sm: 4px;
 
+  /* Element Plus Override */
+  --el-border-radius-base: 0px;
+
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.2s ease;
@@ -168,9 +171,9 @@ code {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 1.4px;
@@ -866,10 +869,11 @@ code {
 .el-button {
   border-radius: var(--radius-none) !important;
   font-family: var(--font-display) !important;
-  font-size: 12px !important;
+  font-size: 14px !important;
   text-transform: uppercase !important;
-  letter-spacing: 1px !important;
+  letter-spacing: 1.4px !important;
   transition: all var(--transition-fast) !important;
+  padding: 12px 24px !important;
 }
 
 .el-button + .el-button {
@@ -905,6 +909,15 @@ code {
   color: var(--text-primary) !important;
 }
 
+/* Link Button */
+.el-button--primary.is-link {
+  font-size: 13px !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+
 /* Inputs */
 .el-input__wrapper {
   border-radius: var(--radius-none) !important;
@@ -935,20 +948,47 @@ code {
 /* Select */
 .el-select .el-input__wrapper {
   border-radius: var(--radius-none) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-default) !important;
+  height: 32px !important;
+}
+
+.el-select .el-input__wrapper:hover {
+  border-color: var(--border-strong) !important;
 }
 
 .el-select__caret {
   color: var(--text-muted) !important;
 }
 
+/* Pagination Select (PageSize) */
+.el-pagination__sizes .el-select .el-input__wrapper {
+  font-family: var(--font-display) !important;
+  font-size: 14px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.4px !important;
+  height: 32px !important;
+  border-radius: var(--radius-none) !important;
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-default) !important;
+}
+
+.el-pagination__sizes .el-select .el-input__inner {
+  font-family: var(--font-display) !important;
+  font-size: 14px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.4px !important;
+  color: var(--text-secondary) !important;
+}
+
 /* Form */
 .el-form-item__label {
-  font-family: var(--font-display) !important;
-  font-size: 11px !important;
+  font-family: var(--font-body) !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1px !important;
-  color: var(--text-muted) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  color: var(--text-secondary) !important;
 }
 
 .el-form-item__error {
@@ -975,11 +1015,11 @@ code {
 }
 
 .el-table th.el-table__cell {
-  font-family: var(--font-display);
-  font-size: 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
   font-weight: 400;
   text-transform: none;
-  letter-spacing: 0.3px;
+  letter-spacing: normal;
   background: var(--bg-surface) !important;
   border-bottom: 1px solid var(--border-default) !important;
   padding: 12px 8px !important;
@@ -990,6 +1030,7 @@ code {
 }
 
 .el-table td.el-table__cell {
+  font-family: var(--font-body);
   font-size: 13px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-default) !important;
@@ -1096,11 +1137,11 @@ code {
 }
 
 .el-dialog__title {
-  font-family: var(--font-display) !important;
-  font-size: 12px !important;
+  font-family: var(--font-body) !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1px !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
   color: var(--text-primary) !important;
 }
 
@@ -1132,7 +1173,8 @@ code {
 
 .el-dropdown-menu__item {
   font-family: var(--font-display) !important;
-  font-size: 12px !important;
+  font-size: 14px !important;
+  letter-spacing: 1.4px !important;
   color: var(--text-secondary) !important;
 }
 
@@ -1145,24 +1187,55 @@ code {
 .el-message {
   border-radius: var(--radius-none) !important;
   font-family: var(--font-display) !important;
+  font-size: 14px !important;
+  letter-spacing: 1.4px !important;
   border: 1px solid var(--border-default) !important;
 }
 
 /* Pagination */
 .el-pagination {
   --el-pagination-bg-color: transparent;
-  --el-pagination-button-bg-color: transparent;
+  --el-pagination-button-bg-color: var(--bg-surface);
   --el-pagination-hover-color: var(--text-primary);
+  --el-pagination-button-disabled-bg-color: transparent;
   font-family: var(--font-display) !important;
+  gap: 4px;
 }
 
 .el-pagination button,
 .el-pager li {
   border-radius: var(--radius-none) !important;
+  font-family: var(--font-display) !important;
+  font-size: 14px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.4px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  border: 1px solid var(--border-default) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-secondary) !important;
+}
+
+.el-pagination button:hover,
+.el-pager li:hover {
+  background: var(--bg-surface-hover) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-primary) !important;
 }
 
 .el-pager li.is-active {
-  color: var(--text-primary) !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-text) !important;
+}
+
+.el-pagination .el-pagination__total {
+  font-family: var(--font-display) !important;
+  font-size: 14px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.4px !important;
+  color: var(--text-muted) !important;
 }
 
 /* Empty */
@@ -1232,7 +1305,7 @@ code {
 
 /* Loading */
 .el-loading-mask {
-  background: rgba(31, 34, 40, 0.9) !important;
+  background: var(--bg-surface-hover) !important;
 }
 
 .el-loading-spinner .el-loading-text {

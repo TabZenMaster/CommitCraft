@@ -5,7 +5,7 @@
       <el-button type="primary" @click="openDialog()">+ 新增模型</el-button>
     </div>
 
-    <el-table :data="list" stripe style="width:100%">
+    <el-table v-loading="loading" :data="list" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="name" label="模型名称" min-width="140" show-overflow-tooltip />
       <el-table-column prop="apiBase" label="API 地址" min-width="200" show-overflow-tooltip />
@@ -63,14 +63,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { modelConfigApi } from '@/api'
 
 const list = ref<any[]>([])
+const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({ status: 1 })
 
 onMounted(loadData)
 
 async function loadData() {
+  loading.value = true
   const res: any = await modelConfigApi.list()
   if (res.success) list.value = res.data
+  loading.value = false
 }
 
 function openDialog(row?: any) {
@@ -119,11 +122,11 @@ async function handleDelete(row: any) {
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
   display: flex;
   align-items: center;

@@ -60,7 +60,8 @@
 
     <!-- Theme toggle -->
     <button class="theme-toggle" @click="toggleTheme">
-      <span class="theme-icon">{{ isDark ? '☀️' : '🌙' }}</span>
+      <Sunny v-if="isDark" class="theme-icon" />
+      <Moon v-else class="theme-icon" />
       <span class="theme-text">{{ isDark ? 'LIGHT MODE' : 'DARK MODE' }}</span>
     </button>
   </div>
@@ -71,6 +72,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '@/api'
+import { Sunny, Moon } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const form = ref({ username: '', password: '' })
@@ -93,7 +95,7 @@ const initTheme = () => {
 
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) {
-    ElMessage.warning('请输入用户名和密码')
+    ElMessage.warning('Please enter username and password')
     return
   }
   loading.value = true
@@ -104,10 +106,10 @@ const handleLogin = async () => {
       localStorage.setItem('cr_user', JSON.stringify(res.data))
       router.push('/')
     } else {
-      ElMessage.error(res.msg || '登录失败')
+      ElMessage.error(res.msg || 'Login failed')
     }
   } catch {
-    ElMessage.error('登录异常')
+    ElMessage.error('Login error')
   } finally {
     loading.value = false
   }
@@ -129,7 +131,7 @@ onMounted(() => {
 }
 
 .login-container {
-  width: 360px;
+  width: 480px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -245,8 +247,8 @@ onMounted(() => {
 /* Button */
 .login-btn {
   width: 100%;
-  height: 48px;
-  font-size: 13px;
+  height: 38px;
+  font-size: 14px;
   letter-spacing: 1.4px;
   margin-top: 8px;
   border: none;
@@ -292,7 +294,8 @@ onMounted(() => {
 }
 
 .theme-icon {
-  font-size: 14px;
+  width: 16px;
+  height: 16px;
 }
 
 .theme-text {

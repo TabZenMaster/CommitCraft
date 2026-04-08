@@ -26,7 +26,8 @@
           <div class="sidebar-footer-role">{{ roleName(user.role) }}</div>
         </div>
         <button class="theme-toggle-btn" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
-          {{ isDark ? '☀️' : '🌙' }}
+          <Sunny v-if="isDark" class="theme-icon" />
+          <Moon v-else class="theme-icon" />
         </button>
         <button class="logout-btn" @click="logout" title="退出登录">↩</button>
       </div>
@@ -94,7 +95,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   DataAnalysis, Search, Tickets, Clock, CircleCheck,
-  Cpu, Box, Calendar, User
+  Cpu, Box, Calendar, User, Sunny, Moon
 } from '@element-plus/icons-vue'
 import { sysUserApi } from '@/api'
 import { refreshTheme } from '@/utils/eventBus'
@@ -134,24 +135,24 @@ function roleName(role: string) {
 const menuItems = computed(() => {
   const items = [
     { path: '/dashboard', label: '数据概览', icon: DataAnalysis },
-    { path: '/review', label: '审核任务', icon: Search },
-    { path: '/review/issues', label: '问题处理台', icon: Tickets },
-    { path: '/review/claimed', label: '待处理问题', icon: Clock },
-    { path: '/review/processed', label: '已处理问题', icon: CircleCheck },
   ]
   if (user.role === 'admin') {
-    items.unshift(
+    items.push(
       { path: '/settings/model', label: '模型配置', icon: Cpu },
       { path: '/settings/repo', label: '仓库管理', icon: Box },
       { path: '/settings/schedule', label: '定时计划', icon: Calendar },
-      { path: '/system/user', label: '用户管理', icon: User },
     )
   }
   if (user.role === 'reviewer' || user.role === 'admin') {
-    const idx = items.findIndex(i => i.path === '/review')
-    if (idx === -1) {
-      items.splice(1, 0, { path: '/review', label: '审核任务', icon: Search })
-    }
+    items.push({ path: '/review', label: '审核任务', icon: Search })
+  }
+  items.push(
+    { path: '/review/issues', label: '问题处理台', icon: Tickets },
+    { path: '/review/claimed', label: '待处理问题', icon: Clock },
+    { path: '/review/processed', label: '已处理问题', icon: CircleCheck },
+  )
+  if (user.role === 'admin') {
+    items.push({ path: '/system/user', label: '用户管理', icon: User })
   }
   return items
 })
@@ -355,11 +356,18 @@ onMounted(() => {
 .theme-toggle-btn {
   background: transparent;
   border: none;
-  font-size: 16px;
   cursor: pointer;
   padding: 4px 6px;
   transition: opacity 0.15s;
   opacity: 0.7;
+  display: flex;
+  align-items: center;
+}
+
+.theme-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
 }
 
 .theme-toggle-btn:hover {
@@ -390,7 +398,7 @@ onMounted(() => {
 }
 
 .main-content {
-  padding: 20px 24px;
+  padding: 12px 16px;
   overflow-y: auto;
   flex: 1;
   background: var(--bg-page);

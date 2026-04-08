@@ -15,13 +15,18 @@
     <el-table :data="tasks" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="repoName" label="仓库" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="commitSha" label="Commit" width="100" align="center">
+      <el-table-column prop="commitSha" label="Commit" width="120" align="center">
         <template #default="{ row }">{{ row.commitSha.slice(0, 8) }}</template>
       </el-table-column>
       <el-table-column prop="commitMessage" label="Commit 信息" min-width="200" show-overflow-tooltip />
       <el-table-column prop="committer" label="提交人" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="committedAt" label="提交时间" width="150" align="center">
-        <template #default="{ row }">{{ row.committedAt?.replace('T', ' ').slice(0, 16) }}</template>
+      <el-table-column prop="committedAt" label="提交时间" width="120" align="center">
+        <template #default="{ row }">
+          <div style="line-height:1.4">
+            <div>{{ row.committedAt?.slice(0, 10) }}</div>
+            <div style="color:var(--text-muted)">{{ row.committedAt?.slice(11, 16) }}</div>
+          </div>
+        </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="90" align="center">
         <template #default="{ row }">
@@ -114,11 +119,11 @@ function copyError(msg: string) {
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
   display: flex;
   align-items: center;

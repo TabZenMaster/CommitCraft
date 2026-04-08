@@ -202,11 +202,11 @@ onMounted(async () => {
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
 }
 

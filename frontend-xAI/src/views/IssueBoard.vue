@@ -28,8 +28,8 @@
       </div>
     </div>
 
-    <el-table :data="results" stripe class="issue-table" style="width:100%">
-      <el-table-column type="index" width="50" align="center" />
+    <el-table v-loading="loading" :data="results" stripe class="issue-table" style="width:100%">
+      <el-table-column type="index" width="60" align="center" />
       <el-table-column prop="filePath" label="文件" min-width="200" show-overflow-tooltip />
       <el-table-column label="行号" width="110" align="center">
         <template #default="{ row }">{{ row.lineStart || '-' }}~{{ row.lineEnd || '-' }}</template>
@@ -159,6 +159,7 @@ import 'diff2html/bundles/css/diff2html.min.css'
 
 const results = ref<any[]>([])
 const repos = ref<any[]>([])
+const loading = ref(false)
 const filterRepo = ref('')
 const filterSev = ref('')
 const filterType = ref('')
@@ -264,6 +265,7 @@ function onFilterChange() {
 }
 
 async function loadData() {
+  loading.value = true
   const res: any = await reviewApi.results({
     repositoryId: filterRepo.value || undefined,
     severity: filterSev.value || undefined,
@@ -277,6 +279,7 @@ async function loadData() {
     results.value = paged?.data ?? []
     total.value = paged?.total ?? 0
   }
+  loading.value = false
 }
 
 async function handleClaim(row: any) {
@@ -329,11 +332,11 @@ function openDetail(row: any) {
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
   display: flex;
   align-items: center;

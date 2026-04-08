@@ -5,7 +5,7 @@
       <el-button type="primary" @click="openDialog()">+ 新增用户</el-button>
     </div>
 
-    <el-table :data="list" stripe style="width:100%">
+    <el-table v-loading="loading" :data="list" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
       <el-table-column prop="realName" label="姓名" min-width="100" show-overflow-tooltip />
@@ -93,6 +93,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { sysUserApi } from '@/api'
 
 const list = ref<any[]>([])
+const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({ status: 1, role: 'developer' })
 const resetVisible = ref(false)
@@ -103,8 +104,10 @@ const isAdmin = computed(() => currentUser.role === 'admin')
 onMounted(loadData)
 
 async function loadData() {
+  loading.value = true
   const res: any = await sysUserApi.list()
   if (res.success) list.value = res.data
+  loading.value = false
 }
 
 function openDialog(row?: any) {
@@ -166,11 +169,11 @@ function roleName(role: string) {
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
   display: flex;
   align-items: center;

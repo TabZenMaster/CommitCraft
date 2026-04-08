@@ -5,7 +5,7 @@
       <el-button type="primary" @click="openDialog()">+ 新增仓库</el-button>
     </div>
 
-    <el-table :data="list" stripe style="width:100%">
+    <el-table v-loading="loading" :data="list" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="repoName" label="仓库名称" min-width="180" show-overflow-tooltip />
       <el-table-column prop="repoUrl" label="仓库地址" min-width="220" show-overflow-tooltip />
@@ -119,6 +119,7 @@ import { repositoryApi, reviewApi } from '@/api'
 
 const list = ref<any[]>([])
 const models = ref<any[]>([])
+const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({})
 
@@ -136,12 +137,14 @@ let triggerRepoId = 0
 onMounted(() => { loadData() })
 
 async function loadData() {
+  loading.value = true
   const [repoRes, modelRes] = await Promise.all([
     repositoryApi.list() as Promise<any>,
     repositoryApi.models() as Promise<any>,
   ])
   if (repoRes.success) list.value = repoRes.data || []
   if (modelRes.success) models.value = modelRes.data || []
+  loading.value = false
 }
 
 async function openDialog(row?: any) {
@@ -245,11 +248,11 @@ async function doTrigger() {
 }
 
 .page-title {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: 14px;
   font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text-primary);
   display: flex;
   align-items: center;
