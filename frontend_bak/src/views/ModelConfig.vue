@@ -1,29 +1,27 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="page-title">模型配置</div>
+      <div class="page-title">🤖 模型配置</div>
       <el-button type="primary" @click="openDialog()">+ 新增模型</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe style="width:100%">
-      <el-table-column prop="id" label="ID" width="60" align="center" />
-      <el-table-column prop="name" label="模型名称" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="apiBase" label="API 地址" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="80" align="center">
+    <el-table :data="list" stripe>
+      <el-table-column prop="id" label="ID" width="60" />
+      <el-table-column prop="name" label="模型名称" />
+      <el-table-column prop="apiBase" label="API 地址" show-overflow-tooltip />
+      <el-table-column prop="description" label="描述" show-overflow-tooltip />
+      <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
-          <span class="table-tag" :class="row.status === 1 ? 'success' : 'info'">
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
             {{ row.status === 1 ? '启用' : '停用' }}
-          </span>
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="200">
         <template #default="{ row }">
-          <div class="action-btns">
-            <button class="action-link success" @click="handleTest(row)">测试</button>
-            <button class="action-link" @click="openDialog(row)">编辑</button>
-            <button class="action-link danger" @click="handleDelete(row)">删除</button>
-          </div>
+          <el-button size="small" type="success" @click="handleTest(row)">测试</el-button>
+          <el-button size="small" @click="openDialog(row)">编辑</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -63,17 +61,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { modelConfigApi } from '@/api'
 
 const list = ref<any[]>([])
-const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({ status: 1 })
 
 onMounted(loadData)
 
 async function loadData() {
-  loading.value = true
   const res: any = await modelConfigApi.list()
   if (res.success) list.value = res.data
-  loading.value = false
 }
 
 function openDialog(row?: any) {
@@ -111,31 +106,5 @@ async function handleDelete(row: any) {
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  padding: 12px 16px;
-}
-
-.page-title {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.page-title-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 </style>

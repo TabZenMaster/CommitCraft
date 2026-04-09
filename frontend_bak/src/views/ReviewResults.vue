@@ -5,38 +5,38 @@
         <el-button @click="router.push('/review')">← 返回</el-button>
         <span style="margin-left:12px">审核任务 #{{ taskId }} 结果</span>
       </div>
-      <span v-if="taskInfo" style="color:var(--text-muted);font-size:13px">
+      <span v-if="taskInfo" style="color:#999;font-size:13px">
         {{ taskInfo.commitSha?.slice(0, 8) }} | {{ taskInfo.commitMessage }} | {{ taskInfo.committer }}
       </span>
     </div>
 
-    <el-table v-if="results.length" :data="results" stripe style="width:100%">
-      <el-table-column type="index" width="50" align="center" />
-      <el-table-column prop="filePath" label="文件" min-width="200" show-overflow-tooltip />
-      <el-table-column label="行号" width="110" align="center">
+    <el-table v-if="results.length" :data="results" stripe>
+      <el-table-column type="index" width="50" />
+      <el-table-column prop="filePath" label="文件" width="200" show-overflow-tooltip />
+      <el-table-column label="行号" width="90">
         <template #default="{ row }">{{ row.lineStart }}~{{ row.lineEnd }}</template>
       </el-table-column>
-      <el-table-column prop="issueType" label="类型" width="100" align="center">
+      <el-table-column prop="issueType" label="类型" width="120">
         <template #default="{ row }">
-          <span class="table-tag" :class="typeTag(row.issueType)">{{ typeName(row.issueType) }}</span>
+          <el-tag size="small" :type="typeTag(row.issueType)">{{ typeName(row.issueType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="severity" label="严重程度" width="100" align="center">
+      <el-table-column prop="severity" label="严重程度" width="100">
         <template #default="{ row }">
-          <span class="table-tag" :class="sevTag(row.severity)">{{ sevName(row.severity) }}</span>
+          <el-tag size="small" :type="sevTag(row.severity)" effect="dark">{{ sevName(row.severity) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="问题描述" min-width="220" show-overflow-tooltip />
-      <el-table-column prop="suggestion" label="修复建议" min-width="180" show-overflow-tooltip />
-      <el-table-column label="代码" width="80" align="center">
+      <el-table-column prop="description" label="问题描述" />
+      <el-table-column prop="suggestion" label="修复建议" />
+      <el-table-column label="代码" width="90">
         <template #default="{ row }">
-          <button v-if="row.diffContent" class="action-link" @click="openCode(row.diffContent)">查看</button>
-          <span v-else class="text-muted">-</span>
+          <el-button v-if="row.diffContent" size="small" @click="openCode(row.diffContent)">查看代码</el-button>
+          <span v-else style="color:#999;font-size:12px">-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="90" align="center">
+      <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
-          <span class="table-tag" :class="statusTag(row.status)">{{ statusName(row.status) }}</span>
+          <el-tag size="small" :type="statusTag(row.status)">{{ statusName(row.status) }}</el-tag>
         </template>
       </el-table-column>
     </el-table>
@@ -164,9 +164,9 @@ function renderDiff(content: string) {
   })
 }
 
-const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: 'info', suggestion: 'info' }[s] || 'info')
+const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: '', suggestion: 'info' }[s] || '')
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
-const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'warning', code_style: 'info', other: 'info' }[s] || 'info')
+const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'warning', code_style: '', other: 'info' }[s] || '')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
 const statusTag = (s: number) => ['', 'warning', 'success', 'info'][s] || 'info'
 const statusName = (s: number) => ['待处理', '已认领', '已修复', '已忽略'][s] || '-'
@@ -190,27 +190,10 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  padding: 12px 16px;
-}
+<style>
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 
-.page-title {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--text-primary);
-}
-
-/* 全屏覆盖层 - always dark for code viewer */
+/* 全屏覆盖层 */
 .cv-overlay {
   position: fixed;
   inset: 0;

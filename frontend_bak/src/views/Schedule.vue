@@ -1,45 +1,43 @@
 <template>
   <div class="schedule-page">
     <div class="page-header">
-      <span class="page-title">定时审核计划</span>
+      <span class="page-title">📅 定时审核计划</span>
       <el-button type="primary" @click="openAddDialog">
         + 添加计划
       </el-button>
     </div>
 
-    <el-table :data="list" v-loading="loading" stripe style="width:100%">
-      <el-table-column prop="id" label="ID" width="60" align="center" />
-      <el-table-column prop="repoName" label="仓库" min-width="160" show-overflow-tooltip>
+    <el-table :data="list" v-loading="loading" stripe>
+      <el-table-column prop="id" label="ID" width="60" />
+      <el-table-column prop="repoName" label="仓库" min-width="140">
         <template #default="{ row }">
           <span>{{ row.repoName || `仓库#${row.repositoryId}` }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="branchName" label="分支" width="120" show-overflow-tooltip />
-      <el-table-column label="执行时间" width="180">
+      <el-table-column prop="branchName" label="分支" width="120" />
+      <el-table-column label="执行时间" width="200">
         <template #default="{ row }">
-          <span class="cron-desc">{{ cronDesc(row.cronExpr) }}</span>
+          <span style="font-size:13px">{{ cronDesc(row.cronExpr) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="enabled" label="状态" width="80" align="center">
+      <el-table-column prop="enabled" label="状态" width="80">
         <template #default="{ row }">
-          <span class="table-tag" :class="row.enabled === 1 ? 'success' : 'info'">
+          <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
             {{ row.enabled === 1 ? '启用' : '停用' }}
-          </span>
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="lastTriggerAt" label="最后触发" width="160" align="center">
+      <el-table-column prop="lastTriggerAt" label="最后触发" width="160">
         <template #default="{ row }">
-          <span class="text-muted">{{ row.lastTriggerAt ? formatTime(row.lastTriggerAt) : '从未' }}</span>
+          {{ row.lastTriggerAt ? formatTime(row.lastTriggerAt) : '从未' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180">
+      <el-table-column label="操作" width="280">
         <template #default="{ row }">
-          <div class="action-btns">
-            <button class="action-link" @click="openEditDialog(row)">编辑</button>
-            <button class="action-link success" @click="handleTrigger(row)">触发</button>
-            <button class="action-link warning" @click="openLogDialog(row)">日志</button>
-            <button class="action-link danger" @click="handleDelete(row)">删除</button>
-          </div>
+          <el-button size="small" type="primary" link @click="openEditDialog(row)">编辑</el-button>
+          <el-button size="small" type="success" link @click="handleTrigger(row)">立即触发</el-button>
+          <el-button size="small" type="warning" link @click="openLogDialog(row)">查看日志</el-button>
+          <el-button size="small" type="danger" link @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -113,7 +111,7 @@
 
     <!-- 执行日志弹窗 -->
     <el-dialog v-model="logDialogVisible" title="执行日志" width="800px">
-      <el-table :data="logList" v-loading="logLoading" stripe size="small" style="width:100%">
+      <el-table :data="logList" v-loading="logLoading" stripe size="small">
         <el-table-column prop="triggerAt" label="执行时间" width="160">
           <template #default="{ row }">
             {{ formatTime(row.triggerAt) }}
@@ -133,7 +131,7 @@
         <el-table-column prop="durationSeconds" label="耗时(秒)" width="80" align="center" />
         <el-table-column prop="errorMessage" label="失败原因" min-width="150">
           <template #default="{ row }">
-            <span style="color:var(--color-critical);font-size:12px">{{ row.errorMessage || '—' }}</span>
+            <span style="color:#f56c6c;font-size:12px">{{ row.errorMessage || '—' }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -374,32 +372,7 @@ function formatTime(t: string) {
 </script>
 
 <style scoped>
-.schedule-page { padding: 0; }
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  padding: 12px 16px;
-}
-
-.page-title {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.page-title-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-.cron-desc { font-size: 13px; color: var(--text-secondary); }
+.schedule-page { padding: 20px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.page-title { font-size: 16px; font-weight: 600; }
 </style>

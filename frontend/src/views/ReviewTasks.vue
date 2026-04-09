@@ -1,9 +1,9 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="page-title">🔍 审核任务</div>
+      <div class="page-title">审核任务</div>
       <div style="display:flex;gap:8px;align-items:center">
-        <span style="font-size:13px;color:#999">仓库筛选：</span>
+        <span style="font-size:13px;color:var(--text-muted)">仓库筛选：</span>
         <el-select v-model="filterRepo" clearable style="width:180px" @change="loadData">
           <el-option label="全部仓库" value="" />
           <el-option v-for="r in repos" :key="r.id" :label="r.repoName" :value="r.id" />
@@ -12,42 +12,49 @@
       </div>
     </div>
 
-    <el-table :data="tasks" stripe>
-      <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="repoName" label="仓库" width="140" />
-      <el-table-column prop="commitSha" label="Commit" width="120">
+    <el-table :data="tasks" stripe style="width:100%">
+      <el-table-column prop="id" label="ID" width="60" align="center" />
+      <el-table-column prop="repoName" label="仓库" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="commitSha" label="Commit" width="120" align="center">
         <template #default="{ row }">{{ row.commitSha.slice(0, 8) }}</template>
       </el-table-column>
-      <el-table-column prop="commitMessage" label="Commit 信息" show-overflow-tooltip />
-      <el-table-column prop="committer" label="提交人" width="100" />
-      <el-table-column prop="committedAt" label="提交时间" width="160">
-        <template #default="{ row }">{{ row.committedAt?.replace('T', ' ').slice(0, 16) }}</template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="commitMessage" label="Commit 信息" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="committer" label="提交人" min-width="100" show-overflow-tooltip />
+      <el-table-column prop="committedAt" label="提交时间" width="120" align="center">
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ statusName(row.status) }}</el-tag>
+          <div style="line-height:1.4">
+            <div>{{ row.committedAt?.slice(0, 10) }}</div>
+            <div style="color:var(--text-muted)">{{ row.committedAt?.slice(11, 16) }}</div>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column prop="criticalCount" label="致命" width="60">
+      <el-table-column prop="status" label="状态" width="90" align="center">
         <template #default="{ row }">
-          <span v-if="row.criticalCount > 0" style="color:#f56c6c;font-weight:bold">{{ row.criticalCount }}</span>
-          <span v-else>-</span>
+          <span class="table-tag" :class="statusType(row.status)">{{ statusName(row.status) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="resultCount" label="问题数" width="80" />
-      <el-table-column prop="errorMsg" label="失败原因" width="180">
+      <el-table-column prop="criticalCount" label="致命" width="70" align="center">
+        <template #default="{ row }">
+          <span v-if="row.criticalCount > 0" class="text-critical">{{ row.criticalCount }}</span>
+          <span v-else class="text-muted">-</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="resultCount" label="问题数" width="80" align="center" />
+      <el-table-column prop="errorMsg" label="失败原因" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
           <span v-if="row.status === 3 && row.errorMsg"
             class="copy-error"
             :title="'点击复制：' + row.errorMsg"
             @click="copyError(row.errorMsg)">{{ row.errorMsg }}</span>
-          <span v-else>-</span>
+          <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180">
+      <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="router.push(`/review/result/${row.id}`)">查看结果</el-button>
-          <el-button v-if="row.status === 3" size="small" type="warning" @click="retry(row)">重试</el-button>
+          <div class="action-btns">
+            <button class="action-link" @click="router.push(`/review/result/${row.id}`)">结果</button>
+            <button v-if="row.status === 3" class="action-link warning" @click="retry(row)">重试</button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -101,7 +108,36 @@ function copyError(msg: string) {
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.copy-error { color: #f56c6c; font-size: 12px; cursor: pointer; text-decoration: underline dotted; }
-.copy-error:hover { color: #f78989; }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  padding: 12px 16px;
+}
+
+.page-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.copy-error { color: var(--color-critical); font-size: 12px; cursor: pointer; text-decoration: underline dotted; }
+.copy-error:hover { opacity: 0.8; }
+.text-critical { color: var(--color-critical); font-weight: bold; }
+.text-muted { color: var(--text-muted); }
 </style>

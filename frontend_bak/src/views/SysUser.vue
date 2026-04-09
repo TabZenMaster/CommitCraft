@@ -1,38 +1,36 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="page-title">用户管理</div>
+      <div class="page-title">👥 用户管理</div>
       <el-button type="primary" @click="openDialog()">+ 新增用户</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe style="width:100%">
-      <el-table-column prop="id" label="ID" width="60" align="center" />
-      <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="realName" label="姓名" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="gitName" label="Git用户名" min-width="140" show-overflow-tooltip>
+    <el-table :data="list" stripe>
+      <el-table-column prop="id" label="ID" width="60" />
+      <el-table-column prop="username" label="用户名" />
+      <el-table-column prop="realName" label="姓名" />
+      <el-table-column prop="gitName" label="Git用户名" width="140">
         <template #default="{ row }">{{ row.gitName || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="role" label="角色" width="100" align="center">
+      <el-table-column prop="role" label="角色" width="120">
         <template #default="{ row }">
-          <span class="table-tag" :class="row.role === 'admin' ? 'danger' : row.role === 'reviewer' ? 'warning' : 'info'">
+          <el-tag :type="row.role === 'admin' ? 'danger' : row.role === 'reviewer' ? 'warning' : 'info'" size="small">
             {{ roleName(row.role) }}
-          </span>
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="80" align="center">
+      <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
-          <span class="table-tag" :class="row.status === 1 ? 'success' : 'info'">
-            {{ row.status === 1 ? '启用' : '停用' }}
-          </span>
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="220">
         <template #default="{ row }">
-          <div class="action-btns">
-            <button class="action-link" @click="openDialog(row)">编辑</button>
-            <button v-if="row.username !== 'admin'" class="action-link danger" @click="handleDelete(row)">删除</button>
-            <span v-else class="action-link muted">-</span>
-            <button v-if="isAdmin && row.username !== 'admin'" class="action-link warning" @click="openReset(row)">重置</button>
+          <div style="display:flex;gap:4px;flex-wrap:nowrap">
+            <el-button size="small" @click="openDialog(row)">编辑</el-button>
+            <el-button v-if="row.username !== 'admin'" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <span v-else style="color:#999;font-size:12px">-</span>
+            <el-button v-if="isAdmin && row.username !== 'admin'" size="small" type="warning" @click="openReset(row)">重置密码</el-button>
           </div>
         </template>
       </el-table-column>
@@ -93,7 +91,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { sysUserApi } from '@/api'
 
 const list = ref<any[]>([])
-const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({ status: 1, role: 'developer' })
 const resetVisible = ref(false)
@@ -104,10 +101,8 @@ const isAdmin = computed(() => currentUser.role === 'admin')
 onMounted(loadData)
 
 async function loadData() {
-  loading.value = true
   const res: any = await sysUserApi.list()
   if (res.success) list.value = res.data
-  loading.value = false
 }
 
 function openDialog(row?: any) {
@@ -158,33 +153,5 @@ function roleName(role: string) {
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  padding: 12px 16px;
-}
-
-.page-title {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.page-title-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.text-muted { color: var(--text-muted); font-size: 12px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 </style>

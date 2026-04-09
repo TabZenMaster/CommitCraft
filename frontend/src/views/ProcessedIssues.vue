@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header">
-      <div class="page-title">✅ 已处理问题</div>
+      <div class="page-title">已处理问题</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <el-select v-model="filterRepo" clearable placeholder="仓库" style="width:140px" @change="onFilterChange">
           <el-option label="全部仓库" value="" />
@@ -33,39 +33,41 @@
       </div>
     </div>
 
-    <el-table :data="results" stripe>
-      <el-table-column type="index" width="50" />
-      <el-table-column prop="filePath" label="文件" width="200" show-overflow-tooltip />
-      <el-table-column label="行号" width="90">
+    <el-table v-loading="loading" :data="results" stripe style="width:100%">
+      <el-table-column type="index" width="60" align="center" />
+      <el-table-column prop="filePath" label="文件" min-width="200" show-overflow-tooltip />
+      <el-table-column label="行号" width="110" align="center">
         <template #default="{ row }">{{ row.lineStart || '-' }}~{{ row.lineEnd || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="issueType" label="类型" width="120">
+      <el-table-column prop="issueType" label="类型" width="100" align="center">
         <template #default="{ row }">
-          <el-tag size="small" :type="typeTag(row.issueType)">{{ typeName(row.issueType) }}</el-tag>
+          <span class="table-tag" :class="typeTag(row.issueType)">{{ typeName(row.issueType) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="severity" label="严重程度" width="100">
+      <el-table-column prop="severity" label="严重程度" width="100" align="center">
         <template #default="{ row }">
-          <el-tag size="small" :type="sevTag(row.severity)" effect="dark">{{ sevName(row.severity) }}</el-tag>
+          <span class="table-tag" :class="sevTag(row.severity)">{{ sevName(row.severity) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="问题描述" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="description" label="问题描述" min-width="220" show-overflow-tooltip />
       <el-table-column prop="suggestion" label="修复建议" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="90">
+      <el-table-column prop="status" label="状态" width="90" align="center">
         <template #default="{ row }">
-          <el-tag size="small" :type="statusTag(row.status)" effect="dark">{{ statusName(row.status) }}</el-tag>
+          <span class="table-tag" :class="statusTag(row.status)">{{ statusName(row.status) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="handlerName" label="处理人" width="100" />
-      <el-table-column label="代码" width="90">
+      <el-table-column prop="handlerName" label="处理人" width="100" align="center" />
+      <el-table-column label="代码" width="80" align="center">
         <template #default="{ row }">
-          <el-button v-if="row.diffContent" size="small" @click="openCode(row.diffContent)">查看代码</el-button>
-          <span v-else style="color:#999;font-size:12px">-</span>
+          <button v-if="row.diffContent" class="action-link" @click="openCode(row.diffContent)">查看</button>
+          <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="90" fixed="right">
+      <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" type="info" plain @click="openDetail(row)">详情</el-button>
+          <div class="action-btns">
+            <button class="action-link" @click="openDetail(row)">详情</button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -117,6 +119,7 @@ import 'diff2html/bundles/css/diff2html.min.css'
 
 const results = ref<any[]>([])
 const repos = ref<any[]>([])
+const loading = ref(false)
 const filterRepo = ref('')
 const filterSev = ref('')
 const filterType = ref('')
@@ -191,9 +194,9 @@ function renderDiff(content: string) {
   })
 }
 
-const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: '', suggestion: 'info' }[s] || '')
+const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: 'info', suggestion: 'info' }[s] || 'info')
 const sevName = (s: string) => ({ critical: '致命', major: '严重', minor: '一般', suggestion: '建议' }[s] || s)
-const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: '', other: 'info' }[s] || '')
+const typeTag = (s: string) => ({ security: 'danger', correctness: 'danger', performance: 'success', maintainability: 'info', best_practice: 'purple', code_style: 'info', other: 'info' }[s] || 'info')
 const typeName = (s: string) => ({ security: '安全', correctness: '正确性', performance: '性能', maintainability: '可维护性', best_practice: '最佳实践', code_style: '代码风格', other: '其他' }[s] || s)
 const statusTag = (s: number) => [, 'warning', 'success', 'info'][s] || 'info'
 const statusName = (s: number) => ['', '', '已修复', '已忽略'][s] || '-'
@@ -210,6 +213,7 @@ function onFilterChange() {
 }
 
 async function loadData() {
+  loading.value = true
   const res: any = await reviewApi.results({
     repositoryId: filterRepo.value || undefined,
     severity: filterSev.value || undefined,
@@ -223,6 +227,7 @@ async function loadData() {
     results.value = (paged?.data ?? []).filter((r: any) => r.status === 2 || r.status === 3)
     total.value = paged?.total ?? 0
   }
+  loading.value = false
 }
 
 function openDetail(row: any) {
@@ -232,9 +237,37 @@ function openDetail(row: any) {
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  padding: 12px 16px;
+}
 
-/* 全屏覆盖层 */
+.page-title {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-title-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* 全屏覆盖层 - always dark for code viewer */
 .cv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; overflow: hidden; }
 .cv-panel { position: absolute; inset: 0; background: #0d1117; display: flex; flex-direction: column; }
 .cv-topbar { height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #161b22; }

@@ -9,7 +9,18 @@ import { startSignalR, stopSignalR } from '@/utils/signalr'
 
 const router = useRouter()
 
-// 监听 token 变化：登录时连接，登出时断开
+// Initialize theme from localStorage or system preference
+const initTheme = () => {
+  const savedTheme = localStorage.getItem('cr_theme')
+  if (savedTheme) {
+    document.documentElement.setAttribute('data-theme', savedTheme)
+  } else {
+    // Default to dark theme
+    document.documentElement.setAttribute('data-theme', 'dark')
+  }
+}
+
+// Listen for token changes: connect on login, disconnect on logout
 watch(
   () => localStorage.getItem('cr_token'),
   (token) => {
@@ -18,4 +29,7 @@ watch(
   },
   { immediate: true }
 )
+
+// Initialize theme on mount
+initTheme()
 </script>

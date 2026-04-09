@@ -18,3 +18,6 @@ export function emit(event: string) {
 
 // 专用于通知刷新任务列表
 export const refreshTasks = () => emit('review-updated')
+
+// 专用于通知主题切换
+export const refreshTheme = () => emit('theme-changed')

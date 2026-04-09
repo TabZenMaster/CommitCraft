@@ -53,6 +53,7 @@ export const reviewApi = {
   handle: (data: { id: number; status: number; memo?: string }) => request.post('/Review/handle', data),
   assign: (data: { id: number; targetUserId: number }) => request.post('/Review/assign', data),
   retry: (id: number) => request.post(`/Review/retry/${id}`),
+  ask: (issueId: number, question: string, connectionId?: string) => request.post('/Review/ask', { issueId, question }, connectionId ? { params: { connectionId } } : {}),
   statistics: (repositoryId?: number) => request.get('/Review/statistics', { params: repositoryId ? { repositoryId } : {} }),
   trend: (repositoryId?: number) => request.get('/Review/trend', { params: repositoryId ? { repositoryId } : {} }),
   repoRanking: () => request.get('/Review/repo-ranking'),

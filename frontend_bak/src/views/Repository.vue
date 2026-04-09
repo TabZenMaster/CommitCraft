@@ -1,29 +1,25 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <div class="page-title">仓库管理</div>
+      <div class="page-title">📦 仓库管理</div>
       <el-button type="primary" @click="openDialog()">+ 新增仓库</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe style="width:100%">
-      <el-table-column prop="id" label="ID" width="60" align="center" />
-      <el-table-column prop="repoName" label="仓库名称" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="repoUrl" label="仓库地址" min-width="220" show-overflow-tooltip />
-      <el-table-column prop="modelName" label="绑定模型" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="80" align="center">
+    <el-table :data="list" stripe>
+      <el-table-column prop="id" label="ID" width="60" />
+      <el-table-column prop="repoName" label="仓库名称" />
+      <el-table-column prop="repoUrl" label="仓库地址" show-overflow-tooltip />
+      <el-table-column prop="modelName" label="绑定模型" width="150" />
+      <el-table-column prop="status" label="状态" width="80">
         <template #default="{ row }">
-          <span class="table-tag" :class="row.status === 1 ? 'success' : 'info'">
-            {{ row.status === 1 ? '启用' : '停用' }}
-          </span>
+          <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" width="280" class-name="op-col">
         <template #default="{ row }">
-          <div class="action-btns">
-            <button class="action-link" @click="openDialog(row)">编辑</button>
-            <button class="action-link" @click="handleTest(row)">测试</button>
-            <button class="action-link" @click="openTrigger(row)">审核</button>
-          </div>
+          <el-button size="small" @click="openDialog(row)">编辑</el-button>
+          <el-button size="small" type="info" @click="handleTest(row)">测试连接</el-button>
+          <el-button size="small" type="primary" @click="openTrigger(row)">立即审核</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -66,21 +62,21 @@
     <el-dialog v-model="triggerVisible" title="选择 Commit 审核" width="860px">
       <div v-if="!selectedCommit">
         <div style="margin-bottom:16px">
-          <span style="font-size:14px;color:var(--text-secondary);margin-right:12px">选择分支：</span>
+          <span style="font-size:14px;color:#666;margin-right:12px">选择分支：</span>
           <el-select v-model="selectedBranch" placeholder="请选择分支" style="width:300px" :loading="branchLoading" @change="loadCommits">
             <el-option v-for="b in branchList" :key="b.name" :label="b.name" :value="b.name" />
           </el-select>
-          <span v-if="branchList.length" style="margin-left:12px;font-size:12px;color:var(--text-muted)">{{ branchList.length }} 个分支</span>
+          <span v-if="branchList.length" style="margin-left:12px;font-size:12px;color:#999">{{ branchList.length }} 个分支</span>
         </div>
-        <div v-if="!selectedBranch" style="text-align:center;padding:40px;color:var(--text-muted)">请先选择分支</div>
+        <div v-if="!selectedBranch" style="text-align:center;padding:40px;color:#999">请先选择分支</div>
         <div v-else>
-          <div style="margin-bottom:8px;padding:0 8px;font-size:12px;color:var(--text-muted)">分支「{{ selectedBranch }}」，点击「审核」选择该 Commit</div>
+          <div style="margin-bottom:8px;padding:0 8px;font-size:12px;color:#999">分支「{{ selectedBranch }}」，点击「审核」选择该 Commit</div>
           <div v-for="c in commitList" :key="c.sha" class="commit-row">
             <div style="display:flex;align-items:flex-start;gap:12px">
               <div style="flex-shrink:0;text-align:right;width:90px">
                 <div class="commit-sha">{{ c.sha?.slice(0, 7) }}</div>
-                <div style="font-size:12px;color:var(--text-muted)">{{ c.committer }}</div>
-                <div style="font-size:12px;color:var(--text-muted)">{{ c.committedAt?.replace('T',' ').slice(0,16) }}</div>
+                <div style="font-size:12px;color:#999">{{ c.committer }}</div>
+                <div style="font-size:12px;color:#bbb">{{ c.committedAt?.replace('T',' ').slice(0,16) }}</div>
               </div>
               <div style="flex:1;min:0">
                 <div class="commit-msg">{{ c.message }}</div>
@@ -90,8 +86,8 @@
               </div>
             </div>
           </div>
-          <div v-if="commitLoading" style="text-align:center;padding:24px;color:var(--text-muted)">加载中...</div>
-          <div v-else-if="!commitList.length" style="text-align:center;padding:24px;color:var(--text-muted)">该分支暂无提交记录</div>
+          <div v-if="commitLoading" style="text-align:center;padding:24px;color:#999">加载中...</div>
+          <div v-else-if="!commitList.length" style="text-align:center;padding:24px;color:#999">该分支暂无提交记录</div>
         </div>
       </div>
       <div v-else>
@@ -119,7 +115,6 @@ import { repositoryApi, reviewApi } from '@/api'
 
 const list = ref<any[]>([])
 const models = ref<any[]>([])
-const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({})
 
@@ -137,14 +132,12 @@ let triggerRepoId = 0
 onMounted(() => { loadData() })
 
 async function loadData() {
-  loading.value = true
   const [repoRes, modelRes] = await Promise.all([
     repositoryApi.list() as Promise<any>,
     repositoryApi.models() as Promise<any>,
   ])
   if (repoRes.success) list.value = repoRes.data || []
   if (modelRes.success) models.value = modelRes.data || []
-  loading.value = false
 }
 
 async function openDialog(row?: any) {
@@ -237,36 +230,10 @@ async function doTrigger() {
 
 <style scoped>
 .repository-page { }
-.page-header {
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  padding: 12px 16px;
-}
-
-.page-title {
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.page-title-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.commit-row { padding: 12px 8px; border-bottom: 1px solid var(--border-default); }
-.commit-row:hover { background: var(--bg-surface-hover); }
-.commit-sha { font-family: var(--font-display); color: var(--ring-blue); font-size: 12px; }
-.commit-msg { font-size: 13px; color: var(--text-secondary); line-height: 1.6; word-break: break-all; }
+.page-header { margin-bottom: 16px; }
+.commit-row { padding: 12px 8px; border-bottom: 1px solid #f0f0f0; }
+.commit-row:hover { background: #f5f7fa; }
+.commit-sha { font-family: monospace; color: #409eff; font-size: 12px; }
+:deep(.op-col .cell) { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
+.commit-msg { font-size: 13px; color: #444; line-height: 1.6; word-break: break-all; }
 </style>

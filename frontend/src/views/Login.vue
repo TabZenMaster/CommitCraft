@@ -1,67 +1,101 @@
 <template>
   <div class="login-page">
-    <div class="login-bg">
-      <div class="bg-orb orb1" />
-      <div class="bg-orb orb2" />
-      <div class="bg-orb orb3" />
-    </div>
-    <div class="login-wrap">
+    <div class="login-container">
+      <!-- Brand -->
       <div class="login-brand">
-        <div class="brand-icon">⚡</div>
-        <h1 class="brand-name">CommitCraft</h1>
-        <p class="brand-sub">AI Code Review Platform</p>
+        <img src="/favicon.svg" class="brand-icon" alt="logo" />
+        <div class="brand-text">
+          <h1 class="brand-name">Commit Craft</h1>
+          <p class="brand-tagline">AI Code Review Platform</p>
+        </div>
       </div>
-      <el-card class="login-card" shadow="never">
-        <el-form @submit.prevent="handleLogin" size="large">
-          <el-form-item>
-            <el-input
+
+      <!-- Login Card -->
+      <div class="login-card">
+        <div class="card-header">
+          <span class="card-title">SIGN IN</span>
+        </div>
+
+        <form class="login-form" @submit.prevent="handleLogin">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input
               v-model="form.username"
-              name="username"
-              placeholder="用户名"
-              prefix-icon="User"
-              clearable
+              type="text"
+              class="form-input"
+              placeholder="Enter your username"
               autocomplete="username"
             />
-          </el-form-item>
-          <el-form-item>
-            <el-input
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input
               v-model="form.password"
-              name="password"
               type="password"
-              placeholder="密码"
-              prefix-icon="Lock"
-              show-password
+              class="form-input"
+              placeholder="Enter your password"
               autocomplete="current-password"
               @keyup.enter="handleLogin"
             />
-          </el-form-item>
-          <el-button
-            type="primary"
-            :loading="loading"
-            class="login-btn"
-            @click="handleLogin"
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-primary login-btn"
+            :class="{ loading: loading }"
+            :disabled="loading"
           >
-            登 入
-          </el-button>
-        </el-form>
-      </el-card>
+            <span v-if="!loading">LOGIN</span>
+            <span v-else>LOADING...</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        <span>Powered by Commit Craft</span>
+      </div>
     </div>
+
+    <!-- Theme toggle -->
+    <button class="theme-toggle" @click="toggleTheme">
+      <Sunny v-if="isDark" class="theme-icon" />
+      <Moon v-else class="theme-icon" />
+      <span class="theme-text">{{ isDark ? 'LIGHT MODE' : 'DARK MODE' }}</span>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { authApi } from '@/api'
+import { Sunny, Moon } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const form = ref({ username: '', password: '' })
 const loading = ref(false)
+const isDark = ref(true)
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
+  localStorage.setItem('cr_theme', isDark.value ? 'dark' : 'light')
+}
+
+const initTheme = () => {
+  const savedTheme = localStorage.getItem('cr_theme')
+  if (savedTheme) {
+    isDark.value = savedTheme === 'dark'
+  }
+  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
+}
 
 const handleLogin = async () => {
   if (!form.value.username || !form.value.password) {
-    ElMessage.warning('请输入用户名和密码')
+    ElMessage.warning('Please enter username and password')
     return
   }
   loading.value = true
@@ -72,14 +106,18 @@ const handleLogin = async () => {
       localStorage.setItem('cr_user', JSON.stringify(res.data))
       router.push('/')
     } else {
-      ElMessage.error(res.msg || '登录失败')
+      ElMessage.error(res.msg || 'Login failed')
     }
   } catch {
-    ElMessage.error('登录异常')
+    ElMessage.error('Login error')
   } finally {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  initTheme()
+})
 </script>
 
 <style scoped>
@@ -88,77 +126,183 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f1623;
+  background: var(--bg-primary);
   position: relative;
-  overflow: hidden;
 }
 
-/* 背景光球 */
-.login-bg { position: absolute; inset: 0; pointer-events: none; }
-.bg-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.12;
-  animation: orbFloat 8s ease-in-out infinite;
-}
-.orb1 { width: 500px; height: 500px; background: #409eff; top: -150px; left: -100px; animation-delay: 0s; }
-.orb2 { width: 400px; height: 400px; background: #53d1a6; bottom: -100px; right: -80px; animation-delay: -3s; }
-.orb3 { width: 300px; height: 300px; background: #764ba2; top: 50%; left: 60%; animation-delay: -5s; }
-
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -20px) scale(1.05); }
-  66% { transform: translate(-20px, 15px) scale(0.95); }
-}
-
-/* 内容 */
-.login-wrap {
-  position: relative;
-  z-index: 1;
-  width: 360px;
+.login-container {
+  width: 480px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 24px;
+  padding: 40px;
+}
+
+/* Brand */
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.brand-icon {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.brand-tagline {
+  font-family: var(--font-display);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Card */
+.login-card {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--text-primary);
+}
+
+/* Form */
+.login-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 
-.login-brand { text-align: center; color: #fff; }
-.brand-icon { font-size: 40px; margin-bottom: 8px; }
-.brand-name { font-size: 28px; font-weight: 800; letter-spacing: 1px; margin: 0 0 4px; color: #fff; }
-.brand-sub { font-size: 14px; color: rgba(255,255,255,0.45); margin: 0; }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-.login-card {
+.form-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.form-input {
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.04);
-  backdrop-filter: blur(20px);
-  padding: 8px 0;
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-:deep(.el-card__body) { padding: 20px 24px; }
-:deep(.el-input__wrapper) {
-  border-radius: 10px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: none;
-  height: 44px;
-}
-:deep(.el-input__inner) { color: rgba(255,255,255,0.9); }
-:deep(.el-input__inner::placeholder) { color: rgba(255,255,255,0.3); }
-:deep(.el-input__prefix .el-icon) { color: rgba(255,255,255,0.35); }
 
+.form-input:focus {
+  border-color: var(--ring-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.form-input::placeholder {
+  color: var(--text-disabled);
+}
+
+/* Button */
 .login-btn {
   width: 100%;
-  height: 44px;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  margin-top: 4px;
-  background: #409eff;
+  height: 38px;
+  font-size: 14px;
+  letter-spacing: 1.4px;
+  margin-top: 8px;
   border: none;
-  transition: opacity 0.2s, transform 0.15s;
+  cursor: pointer;
+  transition: opacity 0.15s;
 }
-.login-btn:hover { opacity: 0.88; transform: translateY(-1px); }
-.login-btn:active { transform: translateY(0); }
+
+.login-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.login-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Footer */
+.login-footer {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-disabled);
+}
+
+/* Theme toggle */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.theme-toggle:hover {
+  border-color: var(--border-strong);
+}
+
+.theme-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-text {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
 </style>

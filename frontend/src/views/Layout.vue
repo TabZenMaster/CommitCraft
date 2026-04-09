@@ -1,62 +1,44 @@
 <template>
-  <el-container class="layout">
+  <div class="layout">
     <!-- 侧边栏 -->
-    <el-aside width="220px">
-      <div class="logo">
-        <span class="logo-icon">⚡</span>
-        <span class="logo-text">CommitCraft</span>
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <img src="/favicon.svg" class="sidebar-logo-img" alt="logo" />
+        <span class="sidebar-logo-text">Commit Craft</span>
       </div>
-      <el-menu :default-active="$route.path" router class="nav-menu">
-        <el-menu-item index="/dashboard">
-          <span class="nav-icon">📊</span><span>数据概览</span>
-        </el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/settings/model">
-          <span class="nav-icon">🤖</span><span>模型配置</span>
-        </el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/settings/repo">
-          <span class="nav-icon">📦</span><span>仓库管理</span>
-        </el-menu-item>
-        <el-menu-item v-if="isReviewer" index="/settings/schedule">
-          <span class="nav-icon">📅</span><span>定时计划</span>
-        </el-menu-item>
-        <el-menu-item v-if="isReviewer" index="/review">
-          <span class="nav-icon">🔍</span><span>审核任务</span>
-        </el-menu-item>
-        <el-menu-item index="/review/issues">
-          <span class="nav-icon">🗂</span><span>问题处理台</span>
-        </el-menu-item>
-        <el-menu-item index="/review/claimed">
-          <span class="nav-icon">⏳</span><span>待处理问题</span>
-        </el-menu-item>
-        <el-menu-item index="/review/processed">
-          <span class="nav-icon">✅</span><span>已处理问题</span>
-        </el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/system/user">
-          <span class="nav-icon">👥</span><span>用户管理</span>
-        </el-menu-item>
-      </el-menu>
-      <div class="sidebar-footer">
-        <div class="user-avatar">{{ userInitials }}</div>
-        <div class="user-detail" @click="openProfile" style="cursor:pointer">
-          <div class="user-name">{{ userName }}</div>
-          <div class="user-role">{{ roleName(user.role) }}</div>
+
+      <nav class="sidebar-menu">
+        <div
+          v-for="item in menuItems"
+          :key="item.path"
+          :class="['sidebar-menu-item', { active: isActive(item.path) }]"
+          @click="navigate(item.path)"
+        >
+          <component :is="item.icon" class="sidebar-menu-icon" />
+          <span class="sidebar-menu-label">{{ item.label }}</span>
         </div>
-        <el-button link class="logout-btn" @click="logout" title="退出登录">↩</el-button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-footer-avatar">{{ userInitials }}</div>
+        <div class="sidebar-footer-info" @click="openProfile" style="cursor:pointer">
+          <div class="sidebar-footer-name">{{ userName }}</div>
+          <div class="sidebar-footer-role">{{ roleName(user.role) }}</div>
+        </div>
+        <button class="theme-toggle-btn" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
+          <Sunny v-if="isDark" class="theme-icon" />
+          <Moon v-else class="theme-icon" />
+        </button>
+        <button class="logout-btn" @click="logout" title="退出登录">↩</button>
       </div>
-    </el-aside>
+    </aside>
 
     <!-- 主内容 -->
-    <el-container class="main-container">
-      <el-header class="top-header">
-        <div class="page-title">{{ pageTitle }}</div>
-        <div class="header-right">
-          <span class="header-time">{{ currentTime }}</span>
-        </div>
-      </el-header>
-      <el-main class="main-content">
+    <main class="main-container">
+      <div class="main-content">
         <router-view />
-      </el-main>
-    </el-container>
+      </div>
+    </main>
 
     <!-- 个人资料弹窗 -->
     <el-dialog v-model="profileVisible" title="个人资料" width="420px">
@@ -104,27 +86,86 @@
         <el-button type="primary" @click="doChangePwd">确认修改</el-button>
       </template>
     </el-dialog>
-  </el-container>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import {
+  DataAnalysis, Search, Tickets, Clock, CircleCheck,
+  Cpu, Box, Calendar, User, Sunny, Moon
+} from '@element-plus/icons-vue'
 import { sysUserApi } from '@/api'
+import { refreshTheme } from '@/utils/eventBus'
 
 const router = useRouter()
 const route = useRoute()
+
+// Theme
+const isDark = ref(true)
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  const theme = isDark.value ? 'dark' : 'light'
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('cr_theme', theme)
+  refreshTheme()
+}
+
+const initTheme = () => {
+  const savedTheme = localStorage.getItem('cr_theme')
+  if (savedTheme) {
+    isDark.value = savedTheme === 'dark'
+  }
+  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
+}
+
+// User
 const user = JSON.parse(localStorage.getItem('cr_user') || '{}')
 const userName = computed(() => user.realName || user.username || '用户')
-const isAdmin = computed(() => user.role === 'admin')
-const isReviewer = computed(() => user.role === 'reviewer' || user.role === 'admin')
 const userInitials = computed(() => (user.realName || user.username || 'U').slice(0, 1).toUpperCase())
 
 function roleName(role: string) {
   return { admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || '用户'
 }
 
+// Menu
+const menuItems = computed(() => {
+  const items = [
+    { path: '/dashboard', label: '数据概览', icon: DataAnalysis },
+  ]
+  if (user.role === 'admin') {
+    items.push(
+      { path: '/settings/model', label: '模型配置', icon: Cpu },
+      { path: '/settings/repo', label: '仓库管理', icon: Box },
+      { path: '/settings/schedule', label: '定时计划', icon: Calendar },
+    )
+  }
+  if (user.role === 'reviewer' || user.role === 'admin') {
+    items.push({ path: '/review', label: '审核任务', icon: Search })
+  }
+  items.push(
+    { path: '/review/issues', label: '问题处理台', icon: Tickets },
+    { path: '/review/claimed', label: '待处理问题', icon: Clock },
+    { path: '/review/processed', label: '已处理问题', icon: CircleCheck },
+  )
+  if (user.role === 'admin') {
+    items.push({ path: '/system/user', label: '用户管理', icon: User })
+  }
+  return items
+})
+
+function isActive(path: string) {
+  return route.path === path
+}
+
+function navigate(path: string) {
+  router.push(path)
+}
+
+// Profile
 const profileVisible = ref(false)
 const profileForm = ref<any>({})
 const pwdVisible = ref(false)
@@ -175,116 +216,191 @@ async function saveProfile() {
   }
 }
 
-const pageTitles: Record<string, string> = {
-  '/dashboard': '数据概览', '/settings/model': '模型配置',
-  '/settings/repo': '仓库管理', '/settings/schedule': '定时计划', '/review': '审核任务',
-  '/review/issues': '问题处理台', '/review/claimed': '待处理问题', '/review/processed': '已处理问题', '/system/user': '用户管理',
-}
-const pageTitle = computed(() => pageTitles[route.path] || '控制台')
-
-const currentTime = ref('')
-let timer: ReturnType<typeof setInterval>
-const updateTime = () => {
-  const now = new Date()
-  currentTime.value = now.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-onMounted(() => { updateTime(); timer = setInterval(updateTime, 60000) })
-onUnmounted(() => clearInterval(timer))
-
+// Logout
 const logout = () => {
   localStorage.clear()
   router.push('/login')
 }
+
+onMounted(() => {
+  initTheme()
+})
 </script>
 
 <style scoped>
-.layout { height: 100vh; display: flex; }
+.layout {
+  height: 100vh;
+  display: flex;
+  background: var(--bg-page);
+}
 
 /* ---- 侧边栏 ---- */
-.el-aside {
-  background: #1e2a38;
-  color: #fff;
+.sidebar {
+  background: var(--bg-primary);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+  width: 220px;
+  height: 100vh;
+  border-right: 1px solid var(--border-default);
   z-index: 10;
+  flex-shrink: 0;
 }
 
-.logo {
-  padding: 20px 16px;
+.sidebar-logo {
+  padding: 16px;
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--border-default);
 }
-.logo-icon { font-size: 22px; }
-.logo-text { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
 
-.nav-menu {
+.sidebar-logo-img {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.sidebar-logo-text {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+}
+
+.sidebar-menu {
   flex: 1;
-  border: none;
-  background: transparent;
   padding: 8px 0;
+  overflow-y: auto;
 }
-:deep(.el-menu-item) {
-  margin: 2px 8px;
-  border-radius: 8px;
-  color: rgba(255,255,255,0.65);
-  height: 44px;
+
+.sidebar-menu-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 12px !important;
-  transition: all 0.2s;
+  padding: 0 12px;
+  height: 44px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 2px 8px;
+  border-radius: 0;
 }
-:deep(.el-menu-item:hover) {
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.9);
+
+.sidebar-menu-item:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
 }
-:deep(.el-menu-item.is-active) {
-  background: rgba(64,158,255,0.25) !important;
-  color: #409eff !important;
-  border-left: 3px solid #409eff;
+
+.sidebar-menu-item.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-left: 3px solid var(--text-primary);
 }
-.nav-icon { font-size: 16px; flex-shrink: 0; }
+
+.sidebar-menu-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebar-menu-label {
+  font-size: 14px;
+  white-space: nowrap;
+}
 
 /* ---- 侧边栏底部 ---- */
 .sidebar-footer {
   padding: 12px 16px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid var(--border-default);
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.user-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: #409eff;
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 600; flex-shrink: 0;
-}
-.user-detail { flex: 1; min-width: 0; }
-.user-name { font-size: 13px; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.user-role { font-size: 11px; color: rgba(255,255,255,0.4); }
-.logout-btn { color: rgba(255,255,255,0.4); font-size: 16px; padding: 4px; }
-.logout-btn:hover { color: #f56c6c; }
 
-/* ---- 主内容区 ---- */
-.main-container { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-
-.top-header {
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+.sidebar-footer-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 24px !important;
-  height: 56px !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
-.page-title { font-size: 16px; font-weight: 600; color: #1e2a38; }
-.header-time { font-size: 13px; color: #999; }
 
-.main-content { padding: 20px 24px; background: #f5f7fa; overflow-y: auto; }
+.sidebar-footer-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-footer-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-footer-role {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.theme-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: opacity 0.15s;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+}
+
+.theme-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+.theme-toggle-btn:hover {
+  opacity: 1;
+}
+
+.logout-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.logout-btn:hover {
+  color: var(--text-primary);
+}
+
+/* ---- 主内容区 ---- */
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.main-content {
+  padding: 12px 16px;
+  overflow-y: auto;
+  flex: 1;
+  background: var(--bg-page);
+}
 </style>
