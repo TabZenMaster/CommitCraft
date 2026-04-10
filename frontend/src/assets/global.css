@@ -833,8 +833,21 @@ code {
 }
 
 /* =========================================
-   Responsive
+   Responsive Breakpoints
    ========================================= */
+
+/* Tablet small: iPad Mini/Air portrait (< 1024px) */
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main-container {
+    width: 100%;
+  }
+}
+
+/* Phone: iPhone 17 (< 768px) */
 @media (max-width: 768px) {
   h1 {
     font-size: 36px;
@@ -857,7 +870,237 @@ code {
   }
 
   .main-content {
-    padding: 16px;
+    padding: 12px;
+  }
+
+  /* Touch-friendly tap targets */
+  .el-button,
+  .el-input__inner,
+  .el-select__input,
+  .el-select-dropdown__item,
+  .el-pager li,
+  .el-pagination button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Improve touch on selects */
+  .el-select {
+    width: 100% !important;
+  }
+
+  /* Full-width inputs on mobile */
+  .el-input {
+    width: 100% !important;
+  }
+
+  /* Page header wraps better on mobile */
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .page-header > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Action buttons stack on mobile */
+  .action-btns {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .action-btns .el-button {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* Tablet landscape (iPad Mini/Air landscape: 1024px - 1280px) */
+@media (min-width: 768px) and (max-width: 1280px) {
+  .sidebar {
+    width: 180px;
+  }
+
+  .sidebar-logo-text {
+    font-size: 12px;
+  }
+
+  .sidebar-menu-label {
+    font-size: 13px;
+  }
+}
+
+/* Phone small (< 480px) */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 28px;
+  }
+
+  h2 {
+    font-size: 24px;
+  }
+
+  .main-content {
+    padding: 8px;
+  }
+
+  /* Stats cards stack */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Overview cards stack */
+  .overview-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Charts full width */
+  .charts-grid,
+  .charts-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* iPad Mini / iPad Air specific */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+  /* Sidebar hidden, content full width */
+  .sidebar {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+  /* Show narrow sidebar */
+  .sidebar {
+    width: 180px;
+    display: flex;
+  }
+}
+
+/* =========================================
+   Tables - Horizontal Scroll on Mobile
+   ========================================= */
+@media (max-width: 768px) {
+  /* Ensure all tables scroll horizontally */
+  .el-table {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .el-table__body-wrapper {
+    overflow-x: auto !important;
+  }
+
+  .el-table__body {
+    min-width: 600px;
+  }
+
+  /* Dialogs full width on mobile */
+  .el-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Cards adjust padding on mobile */
+  .card,
+  .chart-card,
+  .stat-card {
+    padding: 12px;
+  }
+
+  /* Description lists stack on mobile */
+  .el-descriptions {
+    font-size: 13px;
+  }
+
+  /* Form items stack labels on mobile */
+  .el-form-item {
+    flex-direction: column;
+  }
+
+  .el-form-item__label {
+    text-align: left !important;
+    min-width: unset !important;
+    margin-bottom: 4px;
+  }
+
+  /* =========================================
+     Pagination Mobile Override
+     ========================================= */
+  .el-pagination {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 8px 0 !important;
+  }
+
+  /* Remove sizes dropdown and jumper on mobile - save space */
+  .el-pagination__sizes,
+  .el-pagination__jump {
+    display: none !important;
+  }
+
+  .el-pagination__total {
+    font-size: 11px !important;
+    margin-right: 4px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Buttons and pagers: smaller, touch-friendly */
+  .el-pagination button,
+  .el-pager li {
+    min-width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 13px !important;
+    padding: 0 4px !important;
+    border-radius: 0 !important;
+    border: 1px solid var(--border-default) !important;
+    background: var(--bg-surface) !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .el-pagination button:hover,
+  .el-pager li:hover {
+    background: var(--bg-surface-hover) !important;
+    border-color: var(--border-strong) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .el-pager li.is-active {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent-text) !important;
+  }
+
+  /* Prev / Next buttons */
+  .el-pagination .btn-prev,
+  .el-pagination .btn-next {
+    min-width: 36px !important;
+    height: 36px !important;
+    padding: 0 6px !important;
+  }
+
+  /* Force the pager to wrap if it overflows */
+  .el-pager {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px !important;
+  }
+}
+
+/* =========================================
+   Safe Area for iPhone (notch/home bar)
+   ========================================= */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .layout {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
@@ -1001,13 +1244,14 @@ code {
   --el-table-border-color: var(--border-default);
   --el-table-header-bg-color: var(--bg-surface);
   --el-table-row-hover-bg-color: var(--bg-surface-hover);
-  --el-table-bg-color: transparent;
-  --el-table-tr-bg-color: transparent;
+  --el-table-bg-color: var(--bg-surface);
+  --el-table-tr-bg-color: var(--bg-surface);
   --el-table-header-text-color: var(--text-muted);
   --el-table-text-color: var(--text-primary);
   border-radius: var(--radius-none) !important;
   font-family: var(--font-body) !important;
   width: 100% !important;
+  background: var(--bg-surface) !important;
 }
 
 .el-table::before {
@@ -1147,7 +1391,7 @@ code {
 }
 
 .el-dialog__body {
-  padding: 20px 24px !important;
+  padding: 0 !important;
   color: var(--text-secondary) !important;
 }
 
@@ -1302,6 +1546,56 @@ code {
 /* Alert */
 .el-alert {
   border-radius: var(--radius-none) !important;
+}
+.el-alert--info {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-default) !important;
+}
+.el-alert--info .el-alert__title {
+  color: var(--text-primary) !important;
+}
+
+/* Descriptions */
+.el-descriptions {
+  --el-descriptions-table-bg: var(--bg-surface) !important;
+  --el-descriptions-item-bg: var(--bg-surface) !important;
+  --el-descriptions-item-hover-bg: var(--bg-surface-hover) !important;
+  background: var(--bg-surface) !important;
+}
+.el-descriptions__table {
+  background: var(--bg-surface) !important;
+}
+.el-descriptions__label,
+.el-descriptions__content {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+.el-descriptions__cell {
+  background: var(--bg-surface) !important;
+}
+.el-descriptions-item {
+  background: var(--bg-surface) !important;
+}
+html[data-theme="dark"] .el-descriptions__label,
+html[data-theme="dark"] .el-descriptions__content,
+html[data-theme="dark"] .el-descriptions-item {
+  background: #1f2228 !important;
+  color: #ffffff !important;
+}
+
+/* Ensure dialog body background is dark (not white) */
+html[data-theme="dark"] .el-dialog__body {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Force dark background for descriptions in dialog */
+.el-dialog .el-descriptions__label,
+.el-dialog .el-descriptions__content,
+.el-dialog .el-descriptions__cell,
+.el-dialog .el-descriptions-item {
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Loading */

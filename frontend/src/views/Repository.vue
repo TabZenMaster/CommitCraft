@@ -5,7 +5,7 @@
       <el-button type="primary" @click="openDialog()">+ 新增仓库</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe style="width:100%">
+    <el-table v-if="!isMobile" v-loading="loading" :data="list" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="repoName" label="仓库名称" min-width="180" show-overflow-tooltip />
       <el-table-column prop="repoUrl" label="仓库地址" min-width="220" show-overflow-tooltip />
@@ -27,6 +27,32 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 移动端卡片列表 -->
+    <div v-else class="card-list">
+      <TableCard
+        v-for="row in list"
+        :key="row.id"
+        :row="row"
+        :columns="cardColumns"
+      >
+        <template #header>
+          <span class="card-id">#{{ row.id }}</span>
+          <span class="table-tag" :class="row.status === 1 ? 'success' : 'info'">
+            {{ row.status === 1 ? '启用' : '停用' }}
+          </span>
+        </template>
+        <template #repoUrl="{ row }">
+          <span class="cell-text text-muted">{{ row.repoUrl }}</span>
+        </template>
+        <template #footer>
+          <button class="action-link" @click="openDialog(row)">编辑</button>
+          <button class="action-link" @click="handleTest(row)">测试</button>
+          <button class="action-link" @click="openTrigger(row)">审核</button>
+        </template>
+      </TableCard>
+      <el-empty v-if="list.length === 0" description="暂无数据" :image-size="60" />
+    </div>
 
     <!-- 新增/编辑弹窗 -->
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑仓库' : '新增仓库'" width="560px">
@@ -113,15 +139,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { repositoryApi, reviewApi } from '@/api'
+import TableCard from '@/components/TableCard.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
 
 const list = ref<any[]>([])
 const models = ref<any[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({})
+
+const cardColumns = [
+  { key: 'repoName', label: '仓库' },
+  { key: 'repoUrl', label: '地址' },
+  { key: 'modelName', label: '模型' },
+]
 
 const triggerVisible = ref(false)
 const selectedCommit = ref<any>(null)
@@ -269,4 +306,21 @@ async function doTrigger() {
 .commit-row:hover { background: var(--bg-surface-hover); }
 .commit-sha { font-family: var(--font-display); color: var(--ring-blue); font-size: 12px; }
 .commit-msg { font-size: 13px; color: var(--text-secondary); line-height: 1.6; word-break: break-all; }
+
+.card-list {
+  padding: 4px 0;
+}
+
+.card-id {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cell-text {
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-all;
+}
 </style>

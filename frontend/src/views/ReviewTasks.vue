@@ -12,7 +12,8 @@
       </div>
     </div>
 
-    <el-table :data="tasks" stripe style="width:100%">
+    <!-- 桌面端表格 (md+) -->
+    <el-table v-if="!isMobile" :data="tasks" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="repoName" label="仓库" min-width="150" show-overflow-tooltip />
       <el-table-column prop="commitSha" label="Commit" width="120" align="center">
@@ -58,15 +59,52 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 移动端卡片列表 (sm-) -->
+    <div v-else class="card-list">
+      <TableCard
+        v-for="row in tasks"
+        :key="row.id"
+        :row="row"
+        :columns="cardColumns"
+      >
+        <template #header>
+          <span class="card-id">#{{ row.id }}</span>
+          <span class="table-tag" :class="statusType(row.status)">{{ statusName(row.status) }}</span>
+        </template>
+        <template #commitSha="{ row }">
+          <span class="mono-text">{{ row.commitSha?.slice(0, 8) }}</span>
+        </template>
+        <template #committedAt="{ row }">
+          <div>
+            <div>{{ row.committedAt?.slice(0, 10) }}</div>
+            <div style="color:var(--text-muted);font-size:12px">{{ row.committedAt?.slice(11, 16) }}</div>
+          </div>
+        </template>
+        <template #errorMsg="{ row }">
+          <span v-if="row.status === 3 && row.errorMsg" class="copy-error">{{ row.errorMsg }}</span>
+          <span v-else class="text-muted">-</span>
+        </template>
+        <template #footer>
+          <button class="action-link" @click="router.push(`/review/result/${row.id}`)">查看结果</button>
+          <button v-if="row.status === 3" class="action-link warning" @click="retry(row)">重试</button>
+        </template>
+      </TableCard>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { reviewApi, repositoryApi } from '@/api'
 import { on, off } from '@/utils/eventBus'
+import TableCard from '@/components/TableCard.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
 
 const router = useRouter()
 const tasks = ref<any[]>([])
@@ -75,6 +113,17 @@ const filterRepo = ref('')
 
 const statusName = (s: number) => ['待审核', '审核中', '已完成', '失败'][s] || '-'
 const statusType = (s: number) => ['', 'warning', 'success', 'danger'][s] || 'info'
+
+const cardColumns = [
+  { key: 'repoName', label: '仓库' },
+  { key: 'commitSha', label: 'Commit' },
+  { key: 'commitMessage', label: '信息' },
+  { key: 'committer', label: '提交人' },
+  { key: 'committedAt', label: '提交时间' },
+  { key: 'criticalCount', label: '致命' },
+  { key: 'resultCount', label: '问题数' },
+  { key: 'errorMsg', label: '失败原因' },
+]
 
 onMounted(async () => {
   loadData()
@@ -130,14 +179,25 @@ function copyError(msg: string) {
   gap: 8px;
 }
 
-.page-title-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
 .copy-error { color: var(--color-critical); font-size: 12px; cursor: pointer; text-decoration: underline dotted; }
 .copy-error:hover { opacity: 0.8; }
 .text-critical { color: var(--color-critical); font-weight: bold; }
 .text-muted { color: var(--text-muted); }
+
+.card-list {
+  padding: 4px 0;
+}
+
+.card-id {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mono-text {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--ring-blue);
+}
 </style>

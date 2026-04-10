@@ -122,21 +122,64 @@ onMounted(() => {
 
 <style scoped>
 .login-page {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-primary);
   position: relative;
+  padding: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .login-page {
+    align-items: flex-start;
+    padding-top: 40px;
+  }
 }
 
 .login-container {
-  width: 480px;
+  width: 100%;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  padding: 40px;
+  padding: 40px 24px;
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 32px 16px;
+    gap: 20px;
+  }
+
+  .login-brand {
+    gap: 12px;
+  }
+
+  .brand-icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .brand-name {
+    font-size: 20px;
+  }
+
+  .login-form {
+    padding: 20px 16px;
+    gap: 16px;
+  }
+
+  .form-input {
+    padding: 14px 12px;
+    font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+
+  .login-btn {
+    height: 44px;
+  }
 }
 
 /* Brand */

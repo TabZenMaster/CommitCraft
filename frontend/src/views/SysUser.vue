@@ -5,7 +5,8 @@
       <el-button type="primary" @click="openDialog()">+ 新增用户</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe style="width:100%">
+    <!-- 桌面端表格 -->
+    <el-table v-if="!isMobile" v-loading="loading" :data="list" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
       <el-table-column prop="realName" label="姓名" min-width="100" show-overflow-tooltip />
@@ -37,6 +38,36 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 移动端卡片列表 -->
+    <div v-else class="card-list">
+      <TableCard
+        v-for="row in list"
+        :key="row.id"
+        :row="row"
+        :columns="cardColumns"
+      >
+        <template #header>
+          <span class="card-id">#{{ row.id }}</span>
+          <span class="table-tag" :class="row.status === 1 ? 'success' : 'info'">
+            {{ row.status === 1 ? '启用' : '停用' }}
+          </span>
+        </template>
+        <template #username="{ row }"><span class="cell-bold">{{ row.username }}</span></template>
+        <template #role="{ row }">
+          <span class="table-tag" :class="row.role === 'admin' ? 'danger' : row.role === 'reviewer' ? 'warning' : 'info'">
+            {{ roleName(row.role) }}
+          </span>
+        </template>
+        <template #gitName="{ row }"><span class="text-muted">{{ row.gitName || '-' }}</span></template>
+        <template #footer>
+          <button class="action-link" @click="openDialog(row)">编辑</button>
+          <button v-if="row.username !== 'admin'" class="action-link danger" @click="handleDelete(row)">删除</button>
+          <button v-if="isAdmin && row.username !== 'admin'" class="action-link warning" @click="openReset(row)">重置</button>
+        </template>
+      </TableCard>
+      <el-empty v-if="list.length === 0" description="暂无数据" :image-size="60" />
+    </div>
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑用户' : '新增用户'" width="420px">
       <el-form :model="form" label-width="80px">
@@ -91,6 +122,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { sysUserApi } from '@/api'
+import TableCard from '@/components/TableCard.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -100,6 +136,13 @@ const resetVisible = ref(false)
 const resetForm = ref({ id: 0, username: '', password: '' })
 const currentUser = JSON.parse(localStorage.getItem('cr_user') || '{}')
 const isAdmin = computed(() => currentUser.role === 'admin')
+
+const cardColumns = [
+  { key: 'username', label: '用户名' },
+  { key: 'realName', label: '姓名' },
+  { key: 'gitName', label: 'Git用户' },
+  { key: 'role', label: '角色' },
+]
 
 onMounted(loadData)
 
@@ -187,4 +230,21 @@ function roleName(role: string) {
 }
 
 .text-muted { color: var(--text-muted); font-size: 12px; }
+
+.card-list {
+  padding: 4px 0;
+}
+
+.card-id {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cell-bold {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
 </style>

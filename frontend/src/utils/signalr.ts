@@ -45,6 +45,13 @@ export function startSignalR() {
     starting = false
   })
 
+  // Global debug: catch all ReceiveAiStream* before specific handlers
+  ;['ReceiveAiStreamToken', 'ReceiveAiStreamEnd'].forEach(ev => {
+    ;(connection as any).on(ev, (...args: any[]) => {
+      console.log('[SignalR Global]', ev, 'args:', JSON.stringify(args).slice(0, 200))
+    })
+  })
+
   connection.on('ReceiveNotification', (payload: Notification) => {
     // 刷新任务列表
     refreshTasks()

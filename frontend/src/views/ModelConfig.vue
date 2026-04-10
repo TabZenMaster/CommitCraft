@@ -5,7 +5,8 @@
       <el-button type="primary" @click="openDialog()">+ 新增模型</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe style="width:100%">
+    <!-- 桌面端表格 -->
+    <el-table v-if="!isMobile" v-loading="loading" :data="list" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="name" label="模型名称" min-width="140" show-overflow-tooltip />
       <el-table-column prop="apiBase" label="API 地址" min-width="200" show-overflow-tooltip />
@@ -27,6 +28,50 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 移动端卡片列表 -->
+    <div v-else class="card-list">
+      <TableCard
+        v-for="row in list"
+        :key="row.id"
+        :row="row"
+        :columns="cardColumns"
+      >
+        <template #header>
+          <div class="card-name">{{ row.name }}</div>
+          <div class="card-header-right">
+            <span class="table-tag" :class="row.status === 1 ? 'success' : 'info'">
+              {{ row.status === 1 ? '启用' : '停用' }}
+            </span>
+          </div>
+        </template>
+        <template #apiBase="{ row }">
+          <span class="cell-text text-muted">{{ row.apiBase }}</span>
+        </template>
+        <template #description="{ row }">
+          <span class="cell-text text-muted">{{ row.description || '-' }}</span>
+        </template>
+        <template #footer>
+          <button class="action-link success" @click="handleTest(row)">测试</button>
+          <button class="action-link" @click="openDialog(row)">编辑</button>
+          <button class="action-link danger" @click="handleDelete(row)">删除</button>
+        </template>
+      </TableCard>
+      <el-empty v-if="list.length === 0" description="暂无数据" :image-size="60" />
+    </div>
+
+    <el-pagination
+      v-if="total > 0"
+      v-model:current-page="pageIndex"
+      v-model:page-size="pageSize"
+      :page-sizes="isMobile ? [] : [20, 50, 100]"
+      :total="total"
+      :layout="pageLayout"
+      :pager-count="isMobile ? 5 : 7"
+      :small="isMobile"
+      @size-change="loadData"
+      @current-change="loadData"
+      style="margin-top:16px;justify-content:center" />
 
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑模型' : '新增模型'" width="500px">
       <el-form :model="form" label-width="90px">
@@ -58,21 +103,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { modelConfigApi } from '@/api'
+import TableCard from '@/components/TableCard.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
+const pageLayout = computed(() => isMobile.value ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next')
 
 const list = ref<any[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const form = ref<any>({ status: 1 })
+const pageIndex = ref(1)
+const pageSize = ref(50)
+const total = ref(0)
+
+const cardColumns = [
+  { key: 'apiBase', label: 'API 地址' },
+  { key: 'description', label: '描述' },
+]
 
 onMounted(loadData)
 
 async function loadData() {
   loading.value = true
   const res: any = await modelConfigApi.list()
-  if (res.success) list.value = res.data
+  if (res.success) {
+    list.value = res.data ?? []
+    total.value = list.value.length
+  }
   loading.value = false
 }
 
@@ -137,5 +199,34 @@ async function handleDelete(row: any) {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+}
+
+.card-list {
+  padding: 4px 0;
+}
+
+.card-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.card-header-right {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cell-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  word-break: break-all;
 }
 </style>

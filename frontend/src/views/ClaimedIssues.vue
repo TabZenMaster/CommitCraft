@@ -28,7 +28,8 @@
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="results" stripe style="width:100%">
+    <!-- 桌面端表格 -->
+    <el-table v-if="!isMobile" v-loading="loading" :data="results" stripe style="width:100%">
       <el-table-column type="index" width="50" align="center" />
       <el-table-column label="文件" width="300" show-overflow-tooltip>
         <template #default="{ row }">
@@ -73,12 +74,44 @@
       </el-table-column>
     </el-table>
 
+    <!-- 移动端卡片列表 -->
+    <div v-else class="card-list">
+      <TableCard
+        v-for="row in results"
+        :key="row.id"
+        :row="row"
+        :columns="cardColumns"
+      >
+        <template #header>
+          <div class="card-file-path">{{ row.filePath }}</div>
+          <div class="card-header-right">
+            <span class="table-tag" :class="sevTag(row.severity)">{{ sevName(row.severity) }}</span>
+            <span class="table-tag" :class="typeTag(row.issueType)">{{ typeName(row.issueType) }}</span>
+          </div>
+        </template>
+        <template #lineRange="{ row }">
+          <span class="mono-text">{{ row.lineStart || '-' }}{{ row.lineEnd && row.lineEnd !== row.lineStart ? ` ~ ${row.lineEnd}` : '' }}</span>
+        </template>
+        <template #description="{ row }"><span class="cell-text">{{ row.description }}</span></template>
+        <template #suggestion="{ row }"><span class="cell-text text-muted">{{ row.suggestion || '-' }}</span></template>
+        <template #footer>
+          <button class="action-link ai-btn" @click="openAsk(row)">AI分析</button>
+          <button class="action-link success" @click="openFix(row)">修复</button>
+          <button class="action-link" @click="openIgnore(row)">忽略</button>
+          <button v-if="row.diffContent" class="action-link" @click="openCode(row.diffContent)">代码</button>
+        </template>
+      </TableCard>
+      <el-empty v-if="results.length === 0" description="暂无数据" :image-size="60" />
+    </div>
+
     <el-pagination
       v-model:current-page="pageIndex"
       v-model:page-size="pageSize"
-      :page-sizes="[20, 50, 100, 200]"
+      :page-sizes="isMobile ? [] : [20, 50, 100, 200]"
       :total="total"
-      layout="total, sizes, prev, pager, next, jumper"
+      :layout="pageLayout"
+      :pager-count="isMobile ? 5 : 7"
+      :small="isMobile"
       @size-change="loadData"
       @current-change="loadData"
       style="margin-top:16px;justify-content:center" />
@@ -128,28 +161,22 @@
     <!-- AI 询问弹窗 -->
     <AskAiDialog v-model="askDialogVisible" :issue="askDialogIssue" />
 
-    <Teleport to="body">
-      <div v-if="overlayVisible" class="cv-overlay" @click.self="closeOverlay">
-        <div class="cv-panel">
-          <div class="cv-topbar">
-            <span v-if="diffStats" class="cv-add">+{{ diffStats.additions }}</span>
-            <span v-if="diffStats" class="cv-del">-{{ diffStats.deletions }}</span>
-            <button class="cv-close" @click="closeOverlay">✕</button>
-          </div>
-          <div ref="diffRef" class="cv-diff"></div>
-        </div>
-      </div>
-    </Teleport>
+    <DiffViewer v-model="overlayVisible" :content="currentDiffContent" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { reviewApi, repositoryApi, sysUserApi } from '@/api'
 import AskAiDialog from '@/components/AskAiDialog.vue'
-import { html } from 'diff2html'
-import 'diff2html/bundles/css/diff2html.min.css'
+import TableCard from '@/components/TableCard.vue'
+import DiffViewer from '@/components/DiffViewer.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
+const pageLayout = computed(() => isMobile.value ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper')
 
 const results = ref<any[]>([])
 const repos = ref<any[]>([])
@@ -173,66 +200,11 @@ const askDialogVisible = ref(false)
 const askDialogIssue = ref<any>({})
 
 const overlayVisible = ref(false)
-const diffRef = ref<HTMLElement>()
-const diffStats = ref<{ additions: number; deletions: number } | null>(null)
-
-watch(overlayVisible, (v) => {
-  document.documentElement.classList[v ? 'add' : 'remove']('cv-lock')
-})
+const currentDiffContent = ref('')
 
 function openCode(diffContent: string) {
+  currentDiffContent.value = diffContent
   overlayVisible.value = true
-  nextTick(() => renderDiff(diffContent))
-}
-
-function closeOverlay() {
-  overlayVisible.value = false
-}
-
-function renderDiff(content: string) {
-  if (!diffRef.value) return
-  if (!content.trim()) {
-    diffStats.value = null
-    diffRef.value.innerHTML = '<p style="color:#999;padding:40px">无差异内容</p>'
-    return
-  }
-  const lines = content.split('\n')
-  let a = 0, d = 0
-  for (const l of lines) {
-    if (l.startsWith('+') && !l.startsWith('+++')) a++
-    else if (l.startsWith('-') && !l.startsWith('---')) d++
-  }
-  diffStats.value = { additions: a, deletions: d }
-  diffRef.value.innerHTML = html(content, {
-    drawFileList: false,
-    fileContentToggle: false,
-    highlight: true,
-    synchronizedScroll: true,
-    matching: 'lines',
-    outputFormat: 'side-by-side',
-    colorScheme: 'dark'
-  }) as string
-  nextTick(() => {
-    if (!diffRef.value) return
-    const diffContainers = diffRef.value.querySelectorAll('.d2h-files-diff')
-    diffContainers.forEach(container => {
-      const panes = container.querySelectorAll('.d2h-file-side-diff')
-      if (panes.length === 2) {
-        const leftPane = panes[0] as HTMLElement
-        const rightPane = panes[1] as HTMLElement
-        let isSyncingLeftScroll = false
-        let isSyncingRightScroll = false
-        leftPane.addEventListener('scroll', () => {
-          if (!isSyncingLeftScroll) { isSyncingRightScroll = true; rightPane.scrollTop = leftPane.scrollTop; rightPane.scrollLeft = leftPane.scrollLeft }
-          isSyncingLeftScroll = false
-        })
-        rightPane.addEventListener('scroll', () => {
-          if (!isSyncingRightScroll) { isSyncingLeftScroll = true; leftPane.scrollTop = rightPane.scrollTop; leftPane.scrollLeft = rightPane.scrollLeft }
-          isSyncingRightScroll = false
-        })
-      }
-    })
-  })
 }
 
 const sevTag = (s: string) => ({ critical: 'danger', major: 'warning', minor: 'info', suggestion: 'info' }[s] || 'info')
@@ -243,6 +215,12 @@ const roleName = (role: string) => ({ admin: '管理员', reviewer: '审核员',
 
 const currentUser = JSON.parse(localStorage.getItem('cr_user') || '{}')
 const canAssign = computed(() => currentUser.role === 'admin' || currentUser.role === 'reviewer')
+
+const cardColumns = [
+  { key: 'lineRange', label: '行号' },
+  { key: 'description', label: '问题描述' },
+  { key: 'suggestion', label: '修复建议' },
+]
 
 onMounted(async () => {
   const r2 = await repositoryApi.list()
@@ -338,24 +316,6 @@ async function doIgnore() {
   flex-shrink: 0;
 }
 
-/* 全屏覆盖层 - always dark for code viewer */
-.cv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; overflow: hidden; }
-.cv-panel { position: absolute; inset: 0; background: #0d1117; display: flex; flex-direction: column; }
-.cv-topbar { height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #161b22; }
-.cv-add { color: #3fb950; font-size: 13px; font-weight: 700; }
-.cv-del { color: #f85149; font-size: 13px; font-weight: 700; }
-.cv-close { margin-left: auto; background: none; border: none; color: #8b949e; font-size: 15px; cursor: pointer; padding: 4px 8px; }
-.cv-close:hover { color: #e6edf3; }
-.cv-diff { flex: 1; overflow: auto; min-height: 0; display: flex; flex-direction: column; }
-.cv-diff .d2h-wrapper,
-.cv-diff .d2h-file-wrapper { flex: 1; display: flex; flex-direction: column; min-height: 0; margin: 0 !important; border: none; border-radius: 0; }
-.cv-diff .d2h-files-diff { flex: 1; overflow: hidden; display: flex; min-height: 0; }
-.cv-diff .d2h-file-side-diff { height: 100%; overflow: auto !important; }
-.cv-diff .d2h-code-side-linenumber { position: sticky !important; left: 0; z-index: 1; }
-
-html.cv-lock,
-html.cv-lock body { overflow: hidden !important; height: 100% !important; }
-
 .file-cell {
   display: flex;
   flex-direction: column;
@@ -385,5 +345,39 @@ html.cv-lock body { overflow: hidden !important; height: 100% !important; }
 }
 .ai-btn:hover {
   color: #7c3aed;
+}
+
+.card-list {
+  padding: 4px 0;
+}
+
+.card-file-path {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.card-header-right {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mono-text {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--ring-blue);
+}
+
+.cell-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  word-break: break-all;
 }
 </style>

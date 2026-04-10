@@ -104,16 +104,27 @@
           <div class="chart-header">
             <span class="chart-title">最近审核</span>
           </div>
-          <el-table :data="recentTasks" size="small" :max-height="220" class="data-table" style="width:100%">
-            <el-table-column prop="repoName" label="仓库" width="100" show-overflow-tooltip />
-            <el-table-column prop="commitSha" label="Commit" width="110">
-              <template #default="{ row }">
-                <span class="commit-sha">{{ row.commitSha?.slice(0, 7) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="issueCount" label="问题数" width="90" align="center" />
-            <el-table-column prop="createTime" label="时间" />
-          </el-table>
+          <div class="table-scroll-wrapper" v-if="recentTasks.length">
+            <table class="recent-table">
+              <thead>
+                <tr>
+                  <th>仓库</th>
+                  <th>Commit</th>
+                  <th>问题</th>
+                  <th>时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in recentTasks" :key="row.id || Math.random()">
+                  <td>{{ row.repoName }}</td>
+                  <td><span class="commit-sha">{{ row.commitSha?.slice(0, 7) }}</span></td>
+                  <td class="center">{{ row.issueCount }}</td>
+                  <td>{{ row.createTime?.replace('T', ' ').slice(0, 16) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <el-empty v-else description="暂无数据" :image-size="60" />
         </div>
       </div>
     </div>
@@ -266,8 +277,8 @@ function renderStatus() {
   statusChartIns = echarts.init(statusChart.value)
   statusChartIns.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)', backgroundColor: 'rgba(31,34,40,0.95)', borderColor: border, textStyle: { color: text, fontSize: 12 } },
-    legend: { orient: 'vertical', right: 8, top: 'center', textStyle: { fontSize: 11, color: text }, itemGap: 10 },
-    series: [{ type: 'pie', radius: ['42%', '68%'], center: ['34%', '50%'], label: { show: false }, emphasis: { scale: true, scaleSize: 6, label: { show: true, fontSize: 12, fontWeight: 600 } }, data: data.map(d => ({ ...d, itemStyle: { color: d.color, borderRadius: 0, borderWidth: 2, borderColor: bg } })) }]
+    legend: { orient: 'vertical', right: 4, top: 'center', textStyle: { fontSize: 10, color: text }, itemGap: 6 },
+    series: [{ type: 'pie', radius: ['30%', '52%'], center: ['28%', '50%'], label: { show: false }, emphasis: { scale: true, scaleSize: 6, label: { show: true, fontSize: 12, fontWeight: 600 } }, data: data.map(d => ({ ...d, itemStyle: { color: d.color, borderRadius: 0, borderWidth: 2, borderColor: bg } })) }]
   });
   setTimeout(() => statusChartIns?.resize(), 50)
 }
@@ -342,6 +353,9 @@ onUnmounted(() => {
   typeChartIns?.dispose()
 })
 </script>
+
+<style>
+</style>
 
 <style scoped>
 .dashboard {
@@ -634,6 +648,34 @@ onUnmounted(() => {
   padding: 2px 6px;
 }
 
+.recent-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recent-table th,
+.recent-table td {
+  padding: 12px 8px;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.recent-table th {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+.recent-table td.center {
+  text-align: center;
+}
+
 /* === 处理效率 === */
 .eff-card {
   background: var(--bg-surface);
@@ -752,7 +794,7 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .dashboard {
-    padding: 16px;
+    padding: 0;
   }
 
   .overview-row {
@@ -774,5 +816,52 @@ onUnmounted(() => {
   .stats-grid {
     grid-template-columns: 1fr;
   }
+
+  .chart-card {
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .echart {
+    height: 160px;
+    width: 100%;
+  }
+
+  /* 原生 table 横向滚动 */
+  .table-scroll-wrapper {
+    overflow-x: auto;
+    width: 100%;
+  }
+
+  .recent-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .recent-table th,
+  .recent-table td {
+    padding: 8px 6px;
+    text-align: left;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border-default);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .recent-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-surface);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .recent-table td.center {
+    text-align: center;
+  }
+
 }
 </style>

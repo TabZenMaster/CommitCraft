@@ -7,7 +7,7 @@
       </el-button>
     </div>
 
-    <el-table :data="list" v-loading="loading" stripe style="width:100%">
+    <el-table v-if="!isMobile" :data="list" v-loading="loading" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="repoName" label="仓库" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
@@ -43,6 +43,36 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 移动端卡片列表 -->
+    <div v-else class="card-list">
+      <TableCard
+        v-for="row in list"
+        :key="row.id"
+        :row="row"
+        :columns="cardColumns"
+      >
+        <template #header>
+          <span class="card-id">#{{ row.id }}</span>
+          <span class="table-tag" :class="row.enabled === 1 ? 'success' : 'info'">
+            {{ row.enabled === 1 ? '启用' : '停用' }}
+          </span>
+        </template>
+        <template #cronExpr="{ row }">
+          <span class="mono-text">{{ cronDesc(row.cronExpr) }}</span>
+        </template>
+        <template #lastTriggerAt="{ row }">
+          <span class="text-muted">{{ row.lastTriggerAt ? formatTime(row.lastTriggerAt) : '从未' }}</span>
+        </template>
+        <template #footer>
+          <button class="action-link" @click="openEditDialog(row)">编辑</button>
+          <button class="action-link success" @click="handleTrigger(row)">触发</button>
+          <button class="action-link warning" @click="openLogDialog(row)">日志</button>
+          <button class="action-link danger" @click="handleDelete(row)">删除</button>
+        </template>
+      </TableCard>
+      <el-empty v-if="list.length === 0" description="暂无数据" :image-size="60" />
+    </div>
 
     <!-- 添加/编辑弹窗 -->
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑计划' : '添加计划'" width="520px">
@@ -142,12 +172,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { scheduleApi, repositoryApi } from '@/api'
+import TableCard from '@/components/TableCard.vue'
+import { useBreakpoint } from '@/composables/useBreakpoint'
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
 
 const list = ref<any[]>([])
 const repos = ref<any[]>([])
+
+const cardColumns = [
+  { key: 'repoName', label: '仓库' },
+  { key: 'branchName', label: '分支' },
+  { key: 'cronExpr', label: '执行时间' },
+  { key: 'lastTriggerAt', label: '最后触发' },
+]
 const loading = ref(false)
 const dialogVisible = ref(false)
 const saveLoading = ref(false)
@@ -402,4 +444,21 @@ function formatTime(t: string) {
   flex-shrink: 0;
 }
 .cron-desc { font-size: 13px; color: var(--text-secondary); }
+
+.card-list {
+  padding: 4px 0;
+}
+
+.card-id {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mono-text {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--ring-blue);
+}
 </style>

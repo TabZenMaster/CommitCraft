@@ -1,6 +1,20 @@
 <template>
   <div class="layout">
-    <!-- 侧边栏 -->
+    <!-- 移动端顶部栏 -->
+    <header class="mobile-header">
+      <button class="hamburger-btn" @click="drawerVisible = !drawerVisible" aria-label="打开菜单">
+        <Expand v-if="!drawerVisible" class="hamburger-icon" />
+        <Fold v-else class="hamburger-icon" />
+      </button>
+      <img src="/favicon.svg" class="mobile-header-icon" alt="logo" />
+      <div class="mobile-header-title">Commit Craft</div>
+      <button class="theme-toggle-btn-mobile" @click="toggleTheme" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
+        <Sunny v-if="isDark" class="theme-icon" />
+        <Moon v-else class="theme-icon" />
+      </button>
+    </header>
+
+    <!-- 侧边栏 (桌面端) -->
     <aside class="sidebar">
       <div class="sidebar-logo">
         <img src="/favicon.svg" class="sidebar-logo-img" alt="logo" />
@@ -33,12 +47,59 @@
       </div>
     </aside>
 
+    <!-- 移动端抽屉菜单 (自定义，不使用 el-drawer 以避免样式穿透问题) -->
+    <Teleport to="body">
+      <div v-if="drawerVisible" class="drawer-overlay" @click.self="drawerVisible = false">
+        <div class="drawer-panel">
+          <div class="drawer-header">
+            <img src="/favicon.svg" class="drawer-logo-img" alt="logo" />
+            <span class="drawer-logo-text">Commit Craft</span>
+            <button class="drawer-close-btn" @click="drawerVisible = false" aria-label="关闭菜单">
+              <Fold class="drawer-close-icon" />
+            </button>
+          </div>
+          <nav class="drawer-menu">
+            <div
+              v-for="item in menuItems"
+              :key="item.path"
+              :class="['drawer-menu-item', { active: isActive(item.path) }]"
+              @click="navigate(item.path)"
+            >
+              <component :is="item.icon" class="drawer-menu-icon" />
+              <span class="drawer-menu-label">{{ item.label }}</span>
+            </div>
+          </nav>
+          <div class="drawer-footer">
+            <div class="drawer-footer-avatar">{{ userInitials }}</div>
+            <div class="drawer-footer-info" @click="openProfile">
+              <div class="drawer-footer-name">{{ userName }}</div>
+              <div class="drawer-footer-role">{{ roleName(user.role) }}</div>
+            </div>
+            <button class="logout-btn" @click="logout" title="退出登录">↩</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 主内容 -->
     <main class="main-container">
       <div class="main-content">
         <router-view />
       </div>
     </main>
+
+    <!-- 移动端底部导航 (仅手机) -->
+    <nav class="bottom-nav">
+      <div
+        v-for="item in bottomNavItems"
+        :key="item.path"
+        :class="['bottom-nav-item', { active: isActive(item.path) }]"
+        @click="navigate(item.path)"
+      >
+        <component :is="item.icon" class="bottom-nav-icon" />
+        <span class="bottom-nav-label">{{ item.label }}</span>
+      </div>
+    </nav>
 
     <!-- 个人资料弹窗 -->
     <el-dialog v-model="profileVisible" title="个人资料" width="420px">
@@ -58,7 +119,7 @@
         <el-form-item label="状态">
           <el-input :model-value="Number(profileForm.status) === 1 ? '启用' : '停用'" disabled />
         </el-form-item>
-        <el-form-item label="密码">
+        <el-form-item label="密码" class="pwd-action-item" :label-width="isMobile ? 'auto' : '80px'">
           <el-button type="primary" link @click="openPwdDialog">修改密码</el-button>
         </el-form-item>
       </el-form>
@@ -95,13 +156,17 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   DataAnalysis, Search, Tickets, Clock, CircleCheck,
-  Cpu, Box, Calendar, User, Sunny, Moon
+  Cpu, Box, Calendar, User, Sunny, Moon, Fold, Expand
 } from '@element-plus/icons-vue'
 import { sysUserApi } from '@/api'
 import { refreshTheme } from '@/utils/eventBus'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 
 const router = useRouter()
 const route = useRoute()
+
+const { breakpoint } = useBreakpoint()
+const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value === 'sm')
 
 // Theme
 const isDark = ref(true)
@@ -131,6 +196,13 @@ function roleName(role: string) {
   return { admin: '管理员', reviewer: '审核员', developer: '开发者' }[role] || '用户'
 }
 
+// Drawer
+const drawerVisible = ref(false)
+
+function closeDrawer() {
+  drawerVisible.value = false
+}
+
 // Menu
 const menuItems = computed(() => {
   const items = [
@@ -157,12 +229,23 @@ const menuItems = computed(() => {
   return items
 })
 
+// Bottom nav items (first 4 key pages for phone nav)
+const bottomNavItems = computed(() => {
+  const items = [
+    { path: '/dashboard', label: '数据概览', icon: DataAnalysis },
+    { path: '/review/issues', label: '问题处理台', icon: Tickets },
+    { path: '/review/claimed', label: '待处理问题', icon: Clock },
+  ]
+  return items
+})
+
 function isActive(path: string) {
   return route.path === path
 }
 
 function navigate(path: string) {
   router.push(path)
+  closeDrawer()
 }
 
 // Profile
@@ -395,6 +478,7 @@ onMounted(() => {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  height: 100%;
 }
 
 .main-content {
@@ -402,5 +486,463 @@ onMounted(() => {
   overflow-y: auto;
   flex: 1;
   background: var(--bg-page);
+}
+
+/* =========================================
+   Mobile Header (visible < 1024px)
+   ========================================= */
+.mobile-header {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  height: 52px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-default);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  flex-shrink: 0;
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.hamburger-btn:hover {
+  background: var(--bg-surface-hover);
+}
+
+.hamburger-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary);
+}
+
+.mobile-header-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-primary);
+}
+
+.mobile-header-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.theme-toggle-btn-mobile {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.theme-toggle-btn-mobile:hover {
+  background: var(--bg-surface-hover);
+}
+
+.theme-toggle-btn-mobile .theme-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+/* =========================================
+   Mobile Drawer
+   ========================================= */
+.drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.drawer-logo-img {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.drawer-logo-text {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+}
+
+.drawer-close-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.drawer-close-btn:hover {
+  background: var(--bg-surface-hover);
+}
+
+.drawer-close-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+/* Menu nav: takes remaining space, scrolls internally */
+.drawer-menu {
+  flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.drawer-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 50px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 2px 8px;
+  border-radius: 0;
+}
+
+.drawer-menu-item:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.drawer-menu-item.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-left: 3px solid var(--text-primary);
+}
+
+.drawer-menu-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.drawer-menu-label {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Footer: fixed at bottom */
+.drawer-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.drawer-footer-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 0;
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.drawer-footer-info {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.drawer-footer-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-footer-role {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* =========================================
+   Bottom Navigation (phone only < 768px)
+   ========================================= */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-default);
+  z-index: 9;
+  padding-bottom: env(safe-area-inset-bottom);
+  flex-shrink: 0;
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-muted);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-nav-item:hover,
+.bottom-nav-item.active {
+  color: var(--text-primary);
+}
+
+.bottom-nav-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.bottom-nav-label {
+  font-size: 10px;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* =========================================
+   Responsive: Show mobile elements
+   ========================================= */
+@media (max-width: 1024px) {
+  .mobile-header {
+    display: flex;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .main-container {
+    width: 100%;
+    padding-top: 52px; /* account for fixed mobile header */
+  }
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+  }
+
+  /* Add bottom padding so content isn't hidden behind bottom nav */
+  .main-container {
+    padding-bottom: 60px;
+  }
+}
+
+/* =========================================
+   Custom Mobile Drawer (replaces el-drawer)
+   ========================================= */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  animation: drawer-fade-in 0.15s ease;
+}
+
+@keyframes drawer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: drawer-slide-in 0.2s ease;
+}
+
+@keyframes drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-panel .drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.drawer-panel .drawer-logo-img {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.drawer-panel .drawer-logo-text {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+}
+
+.drawer-panel .drawer-close-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.drawer-panel .drawer-close-btn:hover {
+  background: var(--bg-surface-hover);
+}
+
+.drawer-panel .drawer-close-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+}
+
+/* Menu: takes remaining space, scrolls internally */
+.drawer-panel .drawer-menu {
+  flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.drawer-panel .drawer-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 50px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 2px 8px;
+  border-radius: 0;
+}
+
+.drawer-panel .drawer-menu-item:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.drawer-panel .drawer-menu-item.active {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-left: 3px solid var(--text-primary);
+}
+
+.drawer-panel .drawer-menu-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.drawer-panel .drawer-menu-label {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Footer: fixed at bottom */
+.drawer-panel .drawer-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.drawer-panel .drawer-footer-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 0;
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.drawer-panel .drawer-footer-info {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.drawer-panel .drawer-footer-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-panel .drawer-footer-role {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 </style>
