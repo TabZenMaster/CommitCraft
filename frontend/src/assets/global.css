@@ -37,8 +37,8 @@
   --shadow: none;
 
   /* Fonts */
-  --font-display: 'Geist Mono', ui-monospace, SFMono-Regular, 'Roboto Mono', Menlo, Monaco, monospace;
-  --font-body: 'Inter', -apple-system, system-ui, sans-serif;
+  --font-display: 'Geist Mono', ui-monospace, SFMono-Regular, 'Roboto Mono', Menlo, Monaco, 'PingFang SC', 'Microsoft YaHei', monospace;
+  --font-body: 'Inter', -apple-system, system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
 
   /* Spacing */
   --space-xs: 4px;
@@ -870,7 +870,9 @@ code {
   }
 
   .main-content {
-    padding: 12px;
+    padding: 12px !important;
+    /* 60px for bottom nav + 34px for iPhone home indicator area */
+    padding-bottom: 94px !important;
   }
 
   /* Touch-friendly tap targets */
@@ -944,7 +946,9 @@ code {
   }
 
   .main-content {
-    padding: 8px;
+    padding: 8px !important;
+    /* 60px for bottom nav + 34px for iPhone home indicator area */
+    padding-bottom: 94px !important;
   }
 
   /* Stats cards stack */
@@ -1101,6 +1105,13 @@ code {
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .layout {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Fallback for iPhones without env() support */
+@supports not (padding-bottom: env(safe-area-inset-bottom)) {
+  .layout {
+    padding-bottom: 34px;
   }
 }
 

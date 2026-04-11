@@ -43,7 +43,7 @@
           <Sunny v-if="isDark" class="theme-icon" />
           <Moon v-else class="theme-icon" />
         </button>
-        <button class="logout-btn" @click="logout" title="退出登录">↩</button>
+        <button class="logout-btn" @click="logout" title="退出登录">退出</button>
       </div>
     </aside>
 
@@ -75,7 +75,7 @@
               <div class="drawer-footer-name">{{ userName }}</div>
               <div class="drawer-footer-role">{{ roleName(user.role) }}</div>
             </div>
-            <button class="logout-btn" @click="logout" title="退出登录">↩</button>
+            <button class="logout-btn" @click="logout" title="退出登录">退出</button>
           </div>
         </div>
       </div>
@@ -461,10 +461,13 @@ onMounted(() => {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 4px;
+  padding: 4px 8px;
   transition: color 0.15s;
+  /* Prevent button from being squished in flex layout */
+  flex-shrink: 0;
+  font-family: var(--font-display);
 }
 
 .logout-btn:hover {
@@ -667,6 +670,8 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  /* Space for bottom-nav on iOS */
+  margin-bottom: env(safe-area-inset-bottom);
 }
 
 .drawer-footer-avatar {
@@ -771,11 +776,6 @@ onMounted(() => {
   .bottom-nav {
     display: flex;
   }
-
-  /* Add bottom padding so content isn't hidden behind bottom nav */
-  .main-container {
-    padding-bottom: 60px;
-  }
 }
 
 /* =========================================
@@ -800,12 +800,23 @@ onMounted(() => {
   left: 0;
   width: 280px;
   height: 100vh;
+  height: 100dvh; /* Fallback for iOS Safari */
   background: var(--bg-primary);
   border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: drawer-slide-in 0.2s ease;
+}
+
+/* iOS Safari: account for bottom-nav + home indicator */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    .drawer-panel {
+      height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
 }
 
 @keyframes drawer-slide-in {
@@ -911,6 +922,8 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  /* Space for bottom-nav on iOS */
+  margin-bottom: env(safe-area-inset-bottom);
 }
 
 .drawer-panel .drawer-footer-avatar {
