@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+
 namespace CodeReview.Application.Service;
 
 /// <summary>
@@ -84,8 +85,9 @@ public class ReviewSchedulerHostedService : BackgroundService
             var expr = CronExpression.Parse(cronExpr, CronFormat.IncludeSeconds);
             // 用 now-2min 作为基准，留出 2 分钟窗口覆盖检查间隔 60s 带来的漂移
             var fromUtc = nowUtc.AddMinutes(-2);
-            // 用本地时区解析 cron 表达式（如 "0 30 9 * * *" = 每天09:30本地时间）
-            var nextUtc = expr.GetNextOccurrence(fromUtc, TimeZoneInfo.Local);
+            // 显式使用中国时区，避免跨平台 TimeZoneInfo.Local 行为不一致
+            var chinaZone = TimeZoneInfo.FindSystemTimeZoneById("China Standard Time");
+            var nextUtc = expr.GetNextOccurrence(fromUtc, chinaZone);
 
             if (!nextUtc.HasValue)
             {
