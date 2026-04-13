@@ -37,12 +37,14 @@ public class ReviewSchedulerHostedService : BackgroundService
 
                 foreach (var schedule in schedules)
                 {
-                    if (!ShouldRunNow(schedule.CronExpr, nowUtc, schedule.LastTriggerAt, schedule.Id))
+                    var (shouldRun, nextUtc) = ShouldRunNow(schedule.CronExpr, nowUtc, schedule.LastTriggerAt, schedule.Id);
+                    if (!shouldRun || !nextUtc.HasValue)
                         continue;
 
                     try
                     {
-                        await scheduleService.MarkTriggeredAsync(schedule.Id, nowUtc);
+                        // 存实际的触发时间点（nextUtc）而非检查时间（nowUtc），确保 DB 防重逻辑正确
+                        await scheduleService.MarkTriggeredAsync(schedule.Id, nextUtc.Value);
                         _ = scheduleService.TriggerScheduleAsync(schedule.Id);
                     }
                     catch (Exception ex)
@@ -62,31 +64,33 @@ public class ReviewSchedulerHostedService : BackgroundService
 
     /// <summary>
     /// 判断某个 cron 表达式在当前时间是否应该触发。
+    /// 返回 (shouldRun, nextUtc) 元组，nextUtc 为实际的触发时间点。
     ///
     /// 前端 rebuildCron() 保证生成标准 6字段（秒 分 时 日 月 周），
     /// 这里直接 Parse(IncludeSeconds)，所见即所得。
     ///
     /// 核心逻辑：
-    /// 1. 用 GetNextOccurrence(from=now-1min) 找"最近一次触发点"
-    /// 2. 只在 diff=[0,1) 分钟内触发（即 cron 触发点后的第一分钟内）
+    /// 1. 用 GetNextOccurrence(from=now-2min) 找"最近一次触发点"，留 2 分钟宽窗口
+    /// 2. 在 diff=[0,2) 分钟内触发（覆盖 60s 检查间隔导致的 ~1min 漂移）
     /// 3. DB 层防重：若 lastTriggerAt 已经记录了这个触发点（或更晚），跳过
     /// </summary>
-    private bool ShouldRunNow(string cronExpr, DateTime nowUtc, DateTime? lastTriggerAtLocal, int scheduleId)
+    private (bool ShouldRun, DateTime? NextUtc) ShouldRunNow(string cronExpr, DateTime nowUtc, DateTime? lastTriggerAtLocal, int scheduleId)
     {
         try
         {
             var parts = cronExpr.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 6) return false;
+            if (parts.Length != 6) return (false, null);
 
             var expr = CronExpression.Parse(cronExpr, CronFormat.IncludeSeconds);
-            var fromUtc = nowUtc.AddMinutes(-1);
+            // 用 now-2min 作为基准，留出 2 分钟窗口覆盖检查间隔 60s 带来的漂移
+            var fromUtc = nowUtc.AddMinutes(-2);
             // 用本地时区解析 cron 表达式（如 "0 30 9 * * *" = 每天09:30本地时间）
             var nextUtc = expr.GetNextOccurrence(fromUtc, TimeZoneInfo.Local);
 
             if (!nextUtc.HasValue)
             {
                 _logger.LogWarning("[SchedulerCheck] id={0} cron={1} nextUtc=null", scheduleId, cronExpr);
-                return false;
+                return (false, null);
             }
 
             var diff = (nowUtc - nextUtc.Value).TotalMinutes;
@@ -95,7 +99,9 @@ public class ReviewSchedulerHostedService : BackgroundService
                 "[SchedulerCheck] id={0} cron={1} nowUtc={2:HH:mm:ss} next={3:HH:mm:ss} diff={4:F2} lastLocal={5}",
                 scheduleId, cronExpr, nowUtc, nextUtc.Value, diff, lastTriggerAtLocal);
 
-            if (diff < 0 || diff >= 1) return false;
+            // diff >= 0：触发时间已到（不能再是未来）
+            // diff < 2：2 分钟宽窗口，覆盖 60s 检查间隔的最大 ~1min 漂移
+            if (diff < 0 || diff >= 2) return (false, null);
 
             if (lastTriggerAtLocal.HasValue)
             {
@@ -103,16 +109,16 @@ public class ReviewSchedulerHostedService : BackgroundService
                 if (lastUtc >= nextUtc.Value)
                 {
                     _logger.LogInformation("[SchedulerCheck] id={0} DB防重 lastUtc={1} >= next={2}", scheduleId, lastUtc, nextUtc.Value);
-                    return false;
+                    return (false, null);
                 }
             }
 
-            return true;
+            return (true, nextUtc.Value);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ShouldRunNow 异常 cron={0}", cronExpr);
-            return false;
+            return (false, null);
         }
     }
 }
