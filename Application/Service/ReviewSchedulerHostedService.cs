@@ -80,7 +80,8 @@ public class ReviewSchedulerHostedService : BackgroundService
 
             var expr = CronExpression.Parse(cronExpr, CronFormat.IncludeSeconds);
             var fromUtc = nowUtc.AddMinutes(-1);
-            var nextUtc = expr.GetNextOccurrence(fromUtc, TimeZoneInfo.Utc);
+            // 用本地时区解析 cron 表达式（如 "0 30 9 * * *" = 每天09:30本地时间）
+            var nextUtc = expr.GetNextOccurrence(fromUtc, TimeZoneInfo.Local);
 
             if (!nextUtc.HasValue)
             {
