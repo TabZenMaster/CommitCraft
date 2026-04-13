@@ -46,7 +46,9 @@ public class ReviewSchedulerHostedService : BackgroundService
                     {
                         // 存实际的触发时间点（nextUtc）而非检查时间（nowUtc），确保 DB 防重逻辑正确
                         await scheduleService.MarkTriggeredAsync(schedule.Id, nextUtc.Value);
-                        _ = scheduleService.TriggerScheduleAsync(schedule.Id);
+                        // 必须 await，等 TriggerScheduleAsync 完成后再进行下一轮检查，
+                        // 否则同一触发点可能被后续检查周期重复触发（DB 写入未提交时下一轮已读旧值）
+                        await scheduleService.TriggerScheduleAsync(schedule.Id);
                     }
                     catch (Exception ex)
                     {
