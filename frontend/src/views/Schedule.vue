@@ -214,7 +214,7 @@ const form = ref({
   id: 0,
   repositoryId: 0,
   branchName: 'master',
-  cronExpr: '0 9 * * *',
+  cronExpr: '0 9 * * * *',
   enabled: 1,
   execType: 'scheduled' as 'interval' | 'scheduled',
   intervalVal: 1,
@@ -259,10 +259,10 @@ function rebuildCron() {
     const [h, m] = (f._time || '09:00').split(':')
     const hh = h.padStart(2, '0')
     const mm = m.padStart(2, '0')
-    if (f.schedFreq === 'daily') f.cronExpr = `0 ${mm} ${hh} * * * *`
-    else if (f.schedFreq === 'workday') f.cronExpr = `0 ${mm} ${hh} * * 1-5 *`
-    else if (f.schedFreq === 'weekly') f.cronExpr = `0 ${mm} ${hh} * * ${f.weekday} *`
-    else if (f.schedFreq === 'monthly') f.cronExpr = `0 ${mm} ${hh} ${f.monthDay} * * *`
+    if (f.schedFreq === 'daily') f.cronExpr = `0 ${mm} ${hh} * * *`
+    else if (f.schedFreq === 'workday') f.cronExpr = `0 ${mm} ${hh} * * 1-5`
+    else if (f.schedFreq === 'weekly') f.cronExpr = `0 ${mm} ${hh} * * ${f.weekday}`
+    else if (f.schedFreq === 'monthly') f.cronExpr = `0 ${mm} ${hh} ${f.monthDay} * *`
   }
 }
 
@@ -270,10 +270,11 @@ function rebuildCron() {
 function applyCronToForm(cronExpr: string) {
   const p = cronExpr.trim().split(/\s+/)
   if (p.length < 4) return
-  // 补齐到 6 字段：秒 分 时 日 月 周
+  // 补齐到 6 字段：秒 分 时 日 月 周（截断超长字段防止7字段脏数据）
   while (p.length < 6) p.push('*')
+  const truncated = p.slice(0, 6)
 
-  const [, min, hour, day, month, dow] = p
+  const [, min, hour, day, month, dow] = truncated
 
   if (min.startsWith('*/')) {
     Object.assign(form.value, { execType: 'interval', intervalVal: parseInt(min.slice(2)) || 1, intervalUnit: 'minute' })
@@ -294,7 +295,7 @@ function applyCronToForm(cronExpr: string) {
 function openAddDialog() {
   Object.assign(form.value, {
     id: 0, repositoryId: repos.value[0]?.id || 0, branchName: 'master',
-    cronExpr: '0 9 * * *', enabled: 1,
+    cronExpr: '0 9 * * * *', enabled: 1,
     execType: 'scheduled', intervalVal: 1, intervalUnit: 'hour',
     schedFreq: 'daily', _time: '09:00', weekday: '1', monthDay: 1
   })
