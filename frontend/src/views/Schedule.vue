@@ -241,7 +241,23 @@ watch(() => form.value.repositoryId, async (repoId) => {
   const res: any = await repositoryApi.getBranches(repoId)
   branchLoading.value = false
   if (res.success) branchList.value = res.data || []
+  checkDuplicate()
 })
+
+watch(() => form.value.branchName, () => checkDuplicate())
+
+/** 选中仓库+分支后检测是否已存在计划 */
+function checkDuplicate() {
+  if (!form.value.repositoryId || !form.value.branchName) return
+  const exists = list.value.some(s =>
+    s.repositoryId === form.value.repositoryId &&
+    s.branchName === form.value.branchName &&
+    s.id !== form.value.id  // 编辑时排除自身
+  )
+  if (exists) {
+    ElMessage.warning(`仓库「${repos.value.find(r => r.id === form.value.repositoryId)?.repoName}」的分支「${form.value.branchName}」已存在审核计划，无法重复添加`)
+  }
+}
 
 /** 根据当前 form 状态重建 cronExpr，格式：6字段 秒 分 时 日 月 周 */
 function rebuildCron() {

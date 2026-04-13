@@ -44,8 +44,23 @@ public class ReviewScheduleService : IReviewScheduleService
             .FirstAsync();
     }
 
+    /// <summary>
+    /// 检查同一仓库+分支是否已存在审核计划
+    /// </summary>
+    public async Task<bool> ExistsAsync(int repositoryId, string branchName, int? excludeId = null)
+    {
+        var q = _db.Queryable<ReviewSchedule>()
+            .Where(x => !x.IsDeleted && x.RepositoryId == repositoryId && x.BranchName == branchName);
+        if (excludeId.HasValue)
+            q = q.Where(x => x.Id != excludeId.Value);
+        return await q.AnyAsync();
+    }
+
     public async Task<int> CreateAsync(int repositoryId, string branchName, string cronExpr)
     {
+        if (await ExistsAsync(repositoryId, branchName))
+            throw new InvalidOperationException($"该仓库+分支「{branchName}」已存在审核计划，请删除后再试");
+
         var schedule = new ReviewSchedule
         {
             RepositoryId = repositoryId,
@@ -58,6 +73,9 @@ public class ReviewScheduleService : IReviewScheduleService
 
     public async Task UpdateAsync(int id, string branchName, string cronExpr, int enabled)
     {
+        if (await ExistsAsync(repositoryId: (await GetByIdAsync(id))?.RepositoryId ?? 0, branchName, excludeId: id))
+            throw new InvalidOperationException($"该仓库+分支「{branchName}」已存在审核计划，请删除后再试");
+
         await _db.Updateable<ReviewSchedule>()
             .SetColumns(x => x.BranchName == branchName)
             .SetColumns(x => x.CronExpr == cronExpr)
