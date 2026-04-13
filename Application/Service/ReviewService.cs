@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SqlSugar;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 
@@ -13,6 +14,8 @@ namespace CodeReview.Application.Service;
 
 public class ReviewService : IReviewService
 {
+    private static readonly string ReviewLogFile = Path.Combine(Path.GetTempPath(), "review_worker.log");
+
     private readonly ISqlSugarClient _db;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ReviewQueueService _queue;
@@ -104,12 +107,12 @@ public class ReviewService : IReviewService
             IsDeleted = false
         };
         task = await _db.Insertable(task).ExecuteReturnEntityAsync();
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] Inserted task id={task.Id}, commitSha={task.CommitSha[..8]} branch={task.BranchName}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] Inserted task id={task.Id}, commitSha={task.CommitSha[..8]} branch={task.BranchName}\n");
 
         // 入队立即返回，由后台服务执行审核（解决 HTTP 请求卡住的问题）
         if (!_queue.Enqueue(task.Id))
         {
-            File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] 队列满！task id={task.Id} 入队失败\n");
+            File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] 队列满！task id={task.Id} 入队失败\n");
         }
 
         return Result.Ok("审核任务已创建，正在后台执行");
@@ -117,7 +120,7 @@ public class ReviewService : IReviewService
 
     public async Task ExecuteReviewAsync(int reviewCommitId)
     {
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] ExecuteReviewAsync called for id={reviewCommitId}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] ExecuteReviewAsync called for id={reviewCommitId}\n");
         try
         {
             // 更新状态为审核中
@@ -163,9 +166,9 @@ public class ReviewService : IReviewService
             }
 
             // 调用 AI 审核
-            File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] 开始调用 AI，diff 文件数={files.Count}\n");
+            File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] 开始调用 AI，diff 文件数={files.Count}\n");
             var (issues, aiError) = await CallAiReview(model, task, files);
-            File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI 调用返回 issues={(issues?.Count ?? -1)} error={aiError}\n");
+            File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI 调用返回 issues={(issues?.Count ?? -1)} error={aiError}\n");
             if (issues == null) { await MarkFailed(reviewCommitId, aiError ?? "AI 调用失败"); return; }
 
             // 解析结果入库
@@ -272,16 +275,16 @@ public class ReviewService : IReviewService
                 ? $"{apiBase}/repos/{owner}/{repoSlug}/commits/{sha}"
                 : $"{apiBase}/repos/{owner}/{repoSlug}/commits/{sha}?access_token={token}");
 
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {commitUrl}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {commitUrl}\n");
         var commitResp = await client.GetAsync(commitUrl);
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: commitResp={(int)commitResp.StatusCode}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] FetchCommitDiff: commitResp={(int)commitResp.StatusCode}\n");
         if (!commitResp.IsSuccessStatusCode) return (new List<CommitFile>(), (string?)null);
 
         var commitJson = await commitResp.Content.ReadAsStringAsync();
         var commitInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(commitJson);
         var parents = commitInfo?["parents"] as JArray;
         parentSha = parents?.FirstOrDefault()?["sha"]?.ToString();
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: parentSha={parentSha ?? "null"}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] FetchCommitDiff: parentSha={parentSha ?? "null"}\n");
 
         // 使用 compare API 获取 diff
         // GitHub: /repos/{owner}/{repo}/compare/{base}...{head}
@@ -292,15 +295,15 @@ public class ReviewService : IReviewService
                 ? $"{apiBase}/repos/{owner}/{repoSlug}/compare/{parentSha ?? sha}...{sha}"
                 : $"{apiBase}/repos/{owner}/{repoSlug}/compare/{parentSha ?? sha}...{sha}?access_token={token}");
 
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {diffUrl}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] FetchCommitDiff [{platform}]: GET {diffUrl}\n");
         var diffResp = await client.GetAsync(diffUrl);
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff: diffResp={(int)diffResp.StatusCode}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] FetchCommitDiff: diffResp={(int)diffResp.StatusCode}\n");
         if (!diffResp.IsSuccessStatusCode) return (new List<CommitFile>(), (string?)null);
 
         var diffJson = await diffResp.Content.ReadAsStringAsync();
         var diffInfo = JsonConvert.DeserializeObject<Dictionary<string, object>>(diffJson) ?? new();
         var files = diffInfo["files"] as JArray ?? new JArray();
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] FetchCommitDiff [{platform}]: files count={files.Count}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] FetchCommitDiff [{platform}]: files count={files.Count}\n");
 
         // GitHub: diff 在 files[].patch；Gitee: diff 在 files[].diff，统一处理
         var fileList = new List<CommitFile>();
@@ -370,7 +373,7 @@ public class ReviewService : IReviewService
 
     private async Task<(List<ReviewIssue>? Issues, string? ErrorMessage)> CallAiReview(ModelConfig model, ReviewCommit task, List<CommitFile> files)
     {
-        File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] CallAiReview 开始，model={model.Name}，文件数={files.Count}\n");
+        File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] CallAiReview 开始，model={model.Name}，文件数={files.Count}\n");
         // 构建 Prompt（限制单文件 diff 最大 20KB，防止 token 爆表）
         var diffText = string.Join("\n---\n", files.Select(f =>
         {
@@ -436,25 +439,25 @@ cache[key] = result;
 
                 var response = await client.SendAsync(request);
                 var raw = await response.Content.ReadAsStringAsync();
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI HTTP响应 Status={(int)response.StatusCode} Content-Length={raw.Length}\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI HTTP响应 Status={(int)response.StatusCode} Content-Length={raw.Length}\n");
 
                 // 502/503/504/429 需要重试
                 if ((int)response.StatusCode is >= 502 and <= 504 or 429)
                 {
                     lastEx = new Exception($"AI API 返回 {(int)response.StatusCode}");
-                    File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI 调用失败({(int)response.StatusCode})，第{attempt}次重试...\n");
+                    File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI 调用失败({(int)response.StatusCode})，第{attempt}次重试...\n");
                     if (attempt < maxRetries) { await Task.Delay(retryDelay); continue; }
                     return (null, lastEx.Message);
                 }
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI HTTP非200: {(int)response.StatusCode}，响应体: {raw[..Math.Min(200, raw.Length)]}\n");
+                    File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI HTTP非200: {(int)response.StatusCode}，响应体: {raw[..Math.Min(200, raw.Length)]}\n");
                     return (null, $"HTTP {(int)response.StatusCode}");
                 }
 
                 // 调试：打印响应内容前500字符
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI HTTP 200，响应体前500: {raw[..Math.Min(500, raw.Length)]}\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI HTTP 200，响应体前500: {raw[..Math.Min(500, raw.Length)]}\n");
 
                 JObject? result;
                 try
@@ -463,11 +466,11 @@ cache[key] = result;
                 }
                 catch (Exception ex)
                 {
-                    File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI JObject 解析失败: {ex.GetType().Name}: {ex.Message}\n");
+                    File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI JObject 解析失败: {ex.GetType().Name}: {ex.Message}\n");
                     return (null, $"JSON 解析失败: {ex.Message}");
                 }
 
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] deserialization OK, result type={result?.GetType().Name}\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] deserialization OK, result type={result?.GetType().Name}\n");
 
                 // MiniMax reasoning models: content is often empty [], actual response is in reasoning_content
                 // 用 LINQ-to-JSON 安全访问，不用 dynamic
@@ -476,9 +479,9 @@ cache[key] = result;
                 var reasoning = choices?[0]?["message"]?["reasoning_content"]?.Value<string>();
                 var reply = !string.IsNullOrWhiteSpace(msgContent) ? msgContent : reasoning;
 
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] choices count={choices?.Count}, content len={msgContent?.Length ?? -1}, reasoning len={reasoning?.Length ?? -1}\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] choices count={choices?.Count}, content len={msgContent?.Length ?? -1}, reasoning len={reasoning?.Length ?? -1}\n");
                 if (string.IsNullOrWhiteSpace(reply)) {
-                    File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] reply为空，msgContent='{msgContent?.Substring(0, Math.Min(50, msgContent?.Length ?? 0))}', reasoning='{reasoning?.Substring(0, Math.Min(50, reasoning?.Length ?? 0))}'\n");
+                    File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] reply为空，msgContent='{msgContent?.Substring(0, Math.Min(50, msgContent?.Length ?? 0))}', reasoning='{reasoning?.Substring(0, Math.Min(50, reasoning?.Length ?? 0))}'\n");
                     return (new List<ReviewIssue>(), null);
                 }
 
@@ -486,7 +489,7 @@ cache[key] = result;
                 // 解析 pipe 分隔的文本格式：文件名|起始行|结束行|类型|严重|描述|建议 [|代码片段]
                 var issues = new List<ReviewIssue>();
                 var lines = reply.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] 解析 {lines.Length} 行文本格式结果\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] 解析 {lines.Length} 行文本格式结果\n");
                 foreach (var line in lines)
                 {
                     var trimmed = line.Trim();
@@ -506,27 +509,27 @@ cache[key] = result;
                         diff_content = parts.Length > 7 ? parts[7].Trim() : null
                     });
                 }
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] 解析出 {issues.Count} 个问题\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] 解析出 {issues.Count} 个问题\n");
                 return (issues, null);
             }
             catch (TaskCanceledException)
             {
                 // timeout
                 lastEx = new Exception("AI 调用超时");
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI 调用超时，第{attempt}次重试...\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI 调用超时，第{attempt}次重试...\n");
                 if (attempt < maxRetries) { await Task.Delay(retryDelay); continue; }
                 return (null, lastEx?.Message ?? "AI 调用超时");
             }
             catch (HttpRequestException ex)
             {
                 lastEx = ex;
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI HttpRequestException: {ex.Message}，第{attempt}次重试...\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI HttpRequestException: {ex.Message}，第{attempt}次重试...\n");
                 if (attempt < maxRetries) { await Task.Delay(retryDelay); continue; }
                 return (null, lastEx?.Message ?? "网络异常");
             }
             catch (Exception ex)
             {
-                File.AppendAllText("/tmp/review_worker.log", $"[{DateTime.Now}] AI outer catch({ex.GetType().Name}): {ex.Message}\n");
+                File.AppendAllText(ReviewLogFile, $"[{DateTime.Now}] AI outer catch({ex.GetType().Name}): {ex.Message}\n");
                 return (null, $"{ex.GetType().Name}: {ex.Message}");
             }
         }

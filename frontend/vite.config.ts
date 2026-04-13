@@ -9,7 +9,7 @@ export default defineConfig({
   },
   server: {
     port: 6060,
-    allowedHosts: ['.trycloudflare.com', 'localhost', '127.0.0.1'],
+    allowedHosts: ['.trycloudflare.com', '.cpolar.io', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
