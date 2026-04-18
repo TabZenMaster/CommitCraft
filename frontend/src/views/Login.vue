@@ -6,7 +6,7 @@
         <img src="/favicon.svg" class="brand-icon" alt="logo" />
         <div class="brand-text">
           <h1 class="brand-name">Commit Craft</h1>
-          <p class="brand-tagline">AI Code Review Platform</p>
+          <p class="brand-tagline">基于 AI 的代码审查工具</p>
         </div>
       </div>
 
@@ -435,6 +435,7 @@ const handleSelectBranch = async (branchName: string) => {
 const handleSelectCommit = async (commit: CommitItem) => {
   commitDialogVisible.value = false
   filesLoading.value = true
+  reviewing.value = true
   filesReviewList.value = []
   reviewResult.value = null
 
@@ -448,6 +449,7 @@ const handleSelectCommit = async (commit: CommitItem) => {
   if (!res.success) {
     ElMessage.error(res.msg || '获取文件列表失败')
     filesLoading.value = false
+    reviewing.value = false
     return
   }
 
@@ -489,6 +491,7 @@ const handleSelectCommit = async (commit: CommitItem) => {
       file.status = 'error'
     }
   }
+  reviewing.value = false
 }
 
 // Simple markdown renderer (basic)
