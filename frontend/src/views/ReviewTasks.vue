@@ -13,7 +13,7 @@
     </div>
 
     <!-- 桌面端表格 (md+) -->
-    <el-table v-if="!isMobile" :data="tasks" stripe style="width:100%">
+    <el-table v-if="!isMobile" v-loading="loading" :data="tasks" stripe style="width:100%">
       <el-table-column prop="id" label="ID" width="60" align="center" />
       <el-table-column prop="repoName" label="仓库" min-width="150" show-overflow-tooltip />
       <el-table-column prop="commitSha" label="Commit" width="120" align="center">
@@ -109,6 +109,7 @@ const isMobile = computed(() => breakpoint.value === 'xs' || breakpoint.value ==
 const router = useRouter()
 const tasks = ref<any[]>([])
 const repos = ref<any[]>([])
+const loading = ref(false)
 const filterRepo = ref('')
 
 const statusName = (s: number) => ['待审核', '审核中', '已完成', '失败'][s] || '-'
@@ -135,8 +136,10 @@ onUnmounted(() => {
 })
 
 async function loadData() {
+  loading.value = true
   const res: any = await reviewApi.tasks(filterRepo.value || 0)
   if (res.success) tasks.value = res.data
+  loading.value = false
 }
 
 async function retry(row: any) {

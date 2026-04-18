@@ -11,7 +11,7 @@
     </div>
 
     <!-- 桌面端表格 -->
-    <el-table v-if="!isMobile && results.length" :data="results" stripe style="width:100%">
+    <el-table v-if="!isMobile && results.length" v-loading="loading" :data="results" stripe style="width:100%">
       <el-table-column type="index" width="50" align="center" />
       <el-table-column prop="filePath" label="文件" min-width="200" show-overflow-tooltip />
       <el-table-column label="行号" width="110" align="center">
@@ -135,13 +135,13 @@ const cardColumns = [
 async function loadData() {
   loading.value = true
   const res: any = await reviewApi.results({ reviewCommitId: taskId, pageIndex: pageIndex.value, pageSize: pageSize.value })
-  loading.value = false
   if (res.success) {
     const paged = res.data as any
     const order: Record<string, number> = { critical: 0, major: 1, minor: 2, suggestion: 3 }
     results.value = (paged?.data ?? []).sort((a: any, b: any) => (order[a.severity] ?? 99) - (order[b.severity] ?? 99))
     total.value = paged?.total ?? 0
   }
+  loading.value = false
 }
 
 onMounted(async () => {
