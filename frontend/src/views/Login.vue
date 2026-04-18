@@ -23,7 +23,7 @@
             class="tab-btn"
             :class="{ active: activeTab === 'quick' }"
             @click="activeTab = 'quick'"
-          >免登录快速审核</button>
+          >快速审核</button>
         </div>
 
         <!-- Login Form -->
@@ -132,7 +132,7 @@
                 :disabled="reviewing || !canReview"
                 @click="handleOpenBranches"
               >
-                {{ reviewing ? '加载中...' : '审核' }}
+                {{ reviewing ? '审核中...' : '审核' }}
               </button>
             </div>
           </form>
@@ -209,7 +209,7 @@
     <!-- Branch Select Dialog -->
     <el-dialog v-model="branchDialogVisible" title="选择分支" width="400px" destroy-on-close>
       <div v-if="branchLoading" class="branch-loading">
-        <el-icon class="is-loading"><Loading /></el-icon> 加载中...
+        <el-icon class="is-loading"><Loading /></el-icon> 审核中...
       </div>
       <div v-else-if="branchError" class="branch-error">{{ branchError }}</div>
       <div v-else class="branch-list">
@@ -227,7 +227,7 @@
     <!-- Commit Select Dialog -->
     <el-dialog v-model="commitDialogVisible" :title="'选择提交 - ' + selectedBranch" width="600px" destroy-on-close>
       <div v-if="commitLoading" class="branch-loading">
-        <el-icon class="is-loading"><Loading /></el-icon> 加载中...
+        <el-icon class="is-loading"><Loading /></el-icon> 审核中...
       </div>
       <div v-else-if="commitError" class="branch-error">{{ commitError }}</div>
       <div v-else class="branch-list">

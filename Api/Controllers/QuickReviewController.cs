@@ -89,7 +89,8 @@ public class QuickReviewController : ControllerBase
                 var sha = c.GetProperty("sha").GetString() ?? "";
                 var msg = c.GetProperty("commit").GetProperty("message").GetString() ?? "";
                 var shortMsg = msg.Split('\n')[0];
-                var date = c.GetProperty("commit").GetProperty("author").GetProperty("date").GetString() ?? "";
+                var dateRaw = c.GetProperty("commit").GetProperty("author").GetProperty("date").GetString() ?? "";
+                var date = string.IsNullOrEmpty(dateRaw) ? "" : DateTime.TryParse(dateRaw, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm:ss") : dateRaw;
                 var author = c.GetProperty("commit").GetProperty("author").GetProperty("name").GetString() ?? "";
                 result.Add(new { sha = sha[..Math.Min(8, sha.Length)], fullSha = sha, shortMsg, date, author });
             }
