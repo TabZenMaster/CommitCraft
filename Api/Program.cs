@@ -101,7 +101,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
-app.Run("http://0.0.0.0:8080");
+app.Run();
 
 // ===== 数据库建表 + 初始化管理员 =====
 void InitDatabase(IServiceProvider sp)

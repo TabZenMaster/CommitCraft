@@ -12,11 +12,11 @@ export default defineConfig({
     allowedHosts: ['.trycloudflare.com', '.cpolar.io', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:5174',
         changeOrigin: true
       },
       '/hubs': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:5174',
         changeOrigin: true,
         ws: true
       }
