@@ -58,7 +58,6 @@ public class ScheduleController : ControllerBase
     /// <summary>
     /// 手动触发一次扫描（测试用）
     /// </summary>
-    [Authorize(Roles = "admin")]
     [HttpPost("trigger")]
     public async Task<Result> Trigger([FromBody] IdDto dto)
     {

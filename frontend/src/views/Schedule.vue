@@ -36,7 +36,7 @@
         <template #default="{ row }">
           <div class="action-btns">
             <button class="action-link" @click="openEditDialog(row)">编辑</button>
-            <button class="action-link success" @click="handleTrigger(row)">触发</button>
+            <button class="action-link success" @click="handleTrigger(row)" :loading="triggerLoading[row.id]" :disabled="triggerLoading[row.id]">触发</button>
             <button class="action-link warning" @click="openLogDialog(row)">日志</button>
             <button class="action-link danger" @click="handleDelete(row)">删除</button>
           </div>
@@ -66,7 +66,7 @@
         </template>
         <template #footer>
           <button class="action-link" @click="openEditDialog(row)">编辑</button>
-          <button class="action-link success" @click="handleTrigger(row)">触发</button>
+          <button class="action-link success" @click="handleTrigger(row)" :disabled="triggerLoading[row.id]">触发</button>
           <button class="action-link warning" @click="openLogDialog(row)">日志</button>
           <button class="action-link danger" @click="handleDelete(row)">删除</button>
         </template>
@@ -193,6 +193,7 @@ const cardColumns = [
 const loading = ref(false)
 const dialogVisible = ref(false)
 const saveLoading = ref(false)
+const triggerLoading = ref<Record<number, boolean>>({})
 const branchList = ref<any[]>([])
 const branchLoading = ref(false)
 const logDialogVisible = ref(false)
@@ -365,9 +366,15 @@ async function handleSave() {
 }
 
 async function handleTrigger(row: any) {
-  const res: any = await scheduleApi.trigger(row.id)
-  if (res.success) ElMessage.success('触发成功，请查看审核任务列表')
-  else ElMessage.error(res.msg || '触发失败')
+  if (triggerLoading.value[row.id]) return
+  triggerLoading.value[row.id] = true
+  try {
+    const res: any = await scheduleApi.trigger(row.id)
+    if (res.success) ElMessage.success('触发成功，请查看审核任务列表')
+    else ElMessage.error(res.msg || '触发失败')
+  } finally {
+    triggerLoading.value[row.id] = false
+  }
 }
 
 async function handleDelete(row: any) {

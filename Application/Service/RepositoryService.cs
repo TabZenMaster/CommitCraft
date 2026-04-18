@@ -338,7 +338,7 @@ public class RepositoryService : IRepositoryService
         if (value == null) return null;
         var str = value.ToString();
         if (string.IsNullOrWhiteSpace(str)) return null;
-        if (DateTime.TryParse(str, out var dt)) return dt;
+        if (DateTime.TryParse(str, out var dt)) return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
         return null;
     }
 

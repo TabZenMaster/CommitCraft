@@ -212,11 +212,13 @@ const menuItems = computed(() => {
     items.push(
       { path: '/settings/model', label: '模型配置', icon: Cpu },
       { path: '/settings/repo', label: '仓库管理', icon: Box },
-      { path: '/settings/schedule', label: '定时计划', icon: Calendar },
     )
   }
   if (user.role === 'reviewer' || user.role === 'admin') {
     items.push({ path: '/review', label: '审核任务', icon: Search })
+  }
+  if (user.role === 'reviewer' || user.role === 'admin' || user.role === 'developer') {
+    items.push({ path: '/settings/schedule', label: '定时计划', icon: Calendar })
   }
   items.push(
     { path: '/review/issues', label: '问题处理台', icon: Tickets },

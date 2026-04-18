@@ -1340,6 +1340,7 @@ code {
   background: none;
   transition: opacity 0.15s;
 }
+.action-link:disabled { pointer-events: none; opacity: 0.4; cursor: not-allowed; }
 .action-link:hover { opacity: 0.7; text-decoration: underline; }
 .action-link.danger { color: var(--color-critical); }
 .action-link.success { color: var(--color-success); }
